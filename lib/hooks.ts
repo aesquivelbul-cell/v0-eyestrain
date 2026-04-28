@@ -21,12 +21,16 @@ const fetcher = async (url: string) => {
 };
 
 export function useFetch<T>(url: string | null, options = {}) {
-  const { data, error, isLoading, mutate } = useSWR<T>(url, fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 60000, // 1 minute
-    ...options,
-  });
+  const { data, error, isLoading, mutate } = useSWR<T>(
+    url,
+    url ? (fetcher as any) : null,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000, // 1 minute
+      ...options,
+    }
+  );
 
   return {
     data,

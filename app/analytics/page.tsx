@@ -33,25 +33,27 @@ export default function AnalyticsPage() {
     <MainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Analytics & Insights</h1>
-            <p className="text-muted-foreground mt-2">Analyze your eye health trends over time</p>
-          </div>
-          <div className="flex gap-4">
-            <SelectField
-              options={[
-                { value: '7days', label: 'Last 7 days' },
-                { value: '30days', label: 'Last 30 days' },
-                { value: '90days', label: 'Last 90 days' },
-              ]}
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-            />
-            <Button variant="outline" size="lg" onClick={handleExport}>
-              <Download className="w-5 h-5 mr-2" />
-              Export Report
-            </Button>
+        <div className="space-y-4 md:space-y-0">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Analytics & Insights</h1>
+              <p className="text-muted-foreground mt-2">Analyze your eye health trends over time</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <SelectField
+                options={[
+                  { value: '7days', label: 'Last 7 days' },
+                  { value: '30days', label: 'Last 30 days' },
+                  { value: '90days', label: 'Last 90 days' },
+                ]}
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+              />
+              <Button variant="outline" size="lg" onClick={handleExport} className="w-full sm:w-auto">
+                <Download className="w-5 h-5 mr-2" />
+                Export Report
+              </Button>
+            </div>
           </div>
         </div>
 

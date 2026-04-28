@@ -181,7 +181,7 @@ export const SliderField = React.forwardRef<HTMLInputElement, SliderFieldProps>(
 SliderField.displayName = 'SliderField';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'destructive' | 'outline';
+  variant?: 'primary' | 'secondary' | 'destructive' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -211,6 +211,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive/50',
       outline:
         'border border-border bg-background text-foreground hover:bg-muted focus:ring-primary/50',
+      ghost:
+        'text-foreground hover:bg-muted focus:ring-primary/50',
     };
 
     const sizeStyles = {

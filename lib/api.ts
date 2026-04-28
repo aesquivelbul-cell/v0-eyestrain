@@ -71,7 +71,7 @@ export const apiClient = {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(typeof options.headers === 'object' ? (options.headers as Record<string, string>) : {}),
     };
 
     // Add authentication token if available

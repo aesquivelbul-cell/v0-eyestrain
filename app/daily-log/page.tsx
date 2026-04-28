@@ -203,12 +203,13 @@ export default function DailyLogPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 pt-6">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6">
               <Button
                 type="submit"
                 variant="primary"
                 size="lg"
                 isLoading={isSubmitting}
+                className="w-full sm:w-auto"
               >
                 <Save className="w-5 h-5 mr-2" />
                 Save Daily Log
@@ -229,6 +230,7 @@ export default function DailyLogPage() {
                     notes: '',
                   });
                 }}
+                className="w-full sm:w-auto"
               >
                 Clear Form
               </Button>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -9,7 +10,9 @@ import {
   LogOut,
   Eye,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface NavItem {
@@ -58,14 +61,31 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const mainItems = navItems.filter(item => item.category === 'main');
   const configItems = navItems.filter(item => item.category === 'config');
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      
+      <aside className={`fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-300 md:relative md:z-0 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
       {/* Header */}
       <div className="px-6 py-8 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
@@ -145,6 +165,7 @@ export function Sidebar() {
           <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
