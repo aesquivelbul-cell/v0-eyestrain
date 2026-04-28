@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, tokenManager } from './api';
+import { mockAuth } from './mock-auth';
 
 export interface User {
   id: string;
@@ -30,19 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       try {
-        if (!tokenManager.hasValidToken()) {
-          setIsLoading(false);
-          return;
+        const currentUser = mockAuth.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
         }
-
-        // In a real app, we'd fetch user data from /users/profile
-        // For now, we'll just check if token exists
         setIsLoading(false);
       } catch (err) {
         console.error('Auth check failed:', err);
-        tokenManager.clearTokens();
         setIsLoading(false);
       }
     };
@@ -55,13 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const response = await authApi.login(email, password);
-
-      if (response.success && response.data) {
-        setUser(response.data.user);
-      } else {
-        throw new Error(response.message || 'Login failed');
-      }
+      const session = mockAuth.login(email, password);
+      setUser(session.user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
@@ -76,13 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const response = await authApi.register(email, password, name);
-
-      if (response.success && response.data) {
-        setUser(response.data.user);
-      } else {
-        throw new Error(response.message || 'Signup failed');
-      }
+      const session = mockAuth.register(email, password, name);
+      setUser(session.user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Signup failed';
       setError(errorMessage);
@@ -92,20 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    setIsLoading(true);
+  const logout = () => {
     setError(null);
-
-    try {
-      await authApi.logout();
-      setUser(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Logout failed';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
+    mockAuth.logout();
+    setUser(null);
   };
 
   const clearError = () => setError(null);
@@ -115,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAuthenticated: !!user || tokenManager.hasValidToken(),
+        isAuthenticated: mockAuth.isAuthenticated(),
         error,
         login,
         signup,

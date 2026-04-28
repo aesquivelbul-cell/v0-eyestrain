@@ -2,6 +2,7 @@
 
 import { Calendar, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
+import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, MetricCard } from '@/components/dashboard-card';
 import { SelectField } from '@/components/form-components';
 import { useState } from 'react';
@@ -48,7 +49,8 @@ export default function TrendsPage() {
   const avgValue = (selectedMetricData.reduce((a, b) => a + b, 0) / selectedMetricData.length).toFixed(1);
 
   return (
-    <MainLayout>
+    <AuthGuard>
+      <MainLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="space-y-4 md:space-y-0">
@@ -187,6 +189,7 @@ export default function TrendsPage() {
           </div>
         </ChartCard>
       </div>
-    </MainLayout>
+      </MainLayout>
+    </AuthGuard>
   );
 }

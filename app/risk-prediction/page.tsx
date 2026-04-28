@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle, TrendingUp, Zap } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
+import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, StatCard, MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
 
@@ -54,7 +55,8 @@ export default function RiskPredictionPage() {
   ];
 
   return (
-    <MainLayout>
+    <AuthGuard>
+      <MainLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -241,6 +243,7 @@ export default function RiskPredictionPage() {
           </Button>
         </div>
       </div>
-    </MainLayout>
+      </MainLayout>
+    </AuthGuard>
   );
 }

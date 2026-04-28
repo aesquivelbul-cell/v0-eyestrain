@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Eye, Save, AlertCircle } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
+import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard } from '@/components/dashboard-card';
 import { InputField, SelectField, SliderField, Button, TextAreaField } from '@/components/form-components';
 
@@ -55,7 +56,8 @@ export default function DailyLogPage() {
   };
 
   return (
-    <MainLayout>
+    <AuthGuard>
+      <MainLayout>
       <div className="space-y-8 max-w-4xl">
         {/* Header */}
         <div>
@@ -238,6 +240,7 @@ export default function DailyLogPage() {
           </form>
         </ChartCard>
       </div>
-    </MainLayout>
+      </MainLayout>
+    </AuthGuard>
   );
 }

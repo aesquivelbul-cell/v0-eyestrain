@@ -2,6 +2,7 @@
 
 import { Calendar, Download, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
+import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, StatCard, MetricCard } from '@/components/dashboard-card';
 import { Button, SelectField } from '@/components/form-components';
 import { useState } from 'react';
@@ -30,7 +31,8 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <MainLayout>
+    <AuthGuard>
+      <MainLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="space-y-4 md:space-y-0">
@@ -196,6 +198,7 @@ export default function AnalyticsPage() {
           </div>
         </ChartCard>
       </div>
-    </MainLayout>
+      </MainLayout>
+    </AuthGuard>
   );
 }

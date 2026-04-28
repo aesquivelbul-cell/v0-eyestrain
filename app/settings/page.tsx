@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Save, Lock, Bell, Eye } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
+import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard } from '@/components/dashboard-card';
 import { InputField, SelectField, ToggleSwitch, Button } from '@/components/form-components';
 
@@ -48,7 +49,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <MainLayout>
+    <AuthGuard>
+      <MainLayout>
       <div className="space-y-8 max-w-4xl">
         {/* Header */}
         <div>
@@ -233,6 +235,7 @@ export default function SettingsPage() {
           </div>
         </ChartCard>
       </div>
-    </MainLayout>
+      </MainLayout>
+    </AuthGuard>
   );
 }
