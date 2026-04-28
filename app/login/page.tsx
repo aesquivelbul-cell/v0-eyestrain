@@ -1,35 +1,42 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import { InputField, Button } from '@/components/form-components';
+import { useAuth } from '@/lib/auth-context';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login } = useAuth();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
+
     try {
-      // TODO: Implement login logic
-      console.log('Logging in with:', formData);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Redirect to dashboard after successful login
-      // window.location.href = '/dashboard';
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Login failed. Please try again.');
+      await login(formData.email, formData.password);
+      router.push('/dashboard');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      setError(errorMessage);
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +79,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                {error}
+              </div>
+            )}
+
             <InputField
               label="Email Address"
               type="email"

@@ -114,22 +114,150 @@ def get_week_prediction():
 @jwt_required()
 def refresh_predictions():
     """
-    Trigger model training and prediction refresh
-    This would call the ML pipeline to generate new predictions
+    Generate predictions using ML models based on user's recent daily logs
     """
     try:
         user_id = get_jwt_identity()
         
-        # TODO: Implement ML model training and prediction
-        # For now, return a placeholder response
+        # Import ML predictor from app
+        from app import ml_predictor
         
-        return success_response({
-            'status': 'Processing',
-            'message': 'Model retraining started. Predictions will be updated shortly.',
-        }, 'Refresh initiated', 202)
+        if ml_predictor is None:
+            return error_response('ML models not available', 503)
+        
+        # Get user's recent daily logs (last 7 days)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=7)
+        
+        recent_logs = DailyLog.query.filter(
+            DailyLog.user_id == user_id,
+            DailyLog.log_date.between(start_date, end_date)
+        ).all()
+        
+        if not recent_logs:
+            return error_response('No daily logs found for prediction', 404)
+        
+        # Convert to dictionaries for ML model
+        log_dicts = [log.to_dict() for log in recent_logs]
+        
+        # Generate predictions
+        try:
+            # Today's prediction
+            if recent_logs:
+                today_pred = ml_predictor.predict_today(log_dicts[-1])
+                
+                # Save or update today's prediction
+                existing_pred = RiskPrediction.query.filter_by(
+                    user_id=user_id,
+                    prediction_date=date.today()
+                ).first()
+                
+                if existing_pred:
+                    existing_pred.risk_level = today_pred['risk_level']
+                    existing_pred.risk_percentage = today_pred['risk_percentage']
+                    existing_pred.fatigue_score = today_pred['fatigue_score']
+                    existing_pred.recommendations = json.dumps(today_pred['recommendations'])
+                else:
+                    existing_pred = RiskPrediction(
+                        user_id=user_id,
+                        prediction_date=date.today(),
+                        risk_level=today_pred['risk_level'],
+                        risk_percentage=today_pred['risk_percentage'],
+                        fatigue_score=today_pred['fatigue_score'],
+                        recommendations=json.dumps(today_pred['recommendations']),
+                    )
+                    db.session.add(existing_pred)
+            
+            # Tomorrow's prediction
+            tomorrow_pred = ml_predictor.predict_tomorrow(log_dicts)
+            
+            existing_tomorrow = RiskPrediction.query.filter_by(
+                user_id=user_id,
+                prediction_date=date.today() + timedelta(days=1)
+            ).first()
+            
+            if existing_tomorrow:
+                existing_tomorrow.risk_level = tomorrow_pred['risk_level']
+                existing_tomorrow.risk_percentage = tomorrow_pred['risk_percentage']
+                existing_tomorrow.fatigue_score = tomorrow_pred['fatigue_score']
+                existing_tomorrow.recommendations = json.dumps(tomorrow_pred['recommendations'])
+            else:
+                existing_tomorrow = RiskPrediction(
+                    user_id=user_id,
+                    prediction_date=date.today() + timedelta(days=1),
+                    risk_level=tomorrow_pred['risk_level'],
+                    risk_percentage=tomorrow_pred['risk_percentage'],
+                    fatigue_score=tomorrow_pred['fatigue_score'],
+                    recommendations=json.dumps(tomorrow_pred['recommendations']),
+                )
+                db.session.add(existing_tomorrow)
+            
+            db.session.commit()
+            
+            return success_response({
+                'status': 'Success',
+                'message': 'Predictions generated successfully',
+                'predictions': {
+                    'today': today_pred if recent_logs else None,
+                    'tomorrow': tomorrow_pred,
+                }
+            }, 'Predictions refreshed')
+            
+        except Exception as ml_error:
+            db.session.rollback()
+            return error_response(f'ML prediction error: {str(ml_error)}', 500)
         
     except Exception as e:
+        db.session.rollback()
         return error_response(f'Error refreshing predictions: {str(e)}', 500)
+
+@predictions_bp.route('/insights', methods=['GET'])
+@jwt_required()
+def get_insights():
+    """Get ML-generated insights from daily logs"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Import ML predictor from app
+        from app import ml_predictor
+        
+        if ml_predictor is None:
+            return error_response('ML models not available', 503)
+        
+        # Get time period from query params (default to last 30 days)
+        days = request.args.get('days', 30, type=int)
+        days = min(days, 90)  # Cap at 90 days
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get daily logs for the period
+        logs = DailyLog.query.filter(
+            DailyLog.user_id == user_id,
+            DailyLog.log_date.between(start_date, end_date)
+        ).all()
+        
+        if not logs:
+            return error_response('No daily logs found for insights', 404)
+        
+        # Convert to dictionaries
+        log_dicts = [log.to_dict() for log in logs]
+        
+        # Generate insights
+        try:
+            insights = ml_predictor.get_insights(log_dicts)
+            
+            return success_response({
+                'insights': insights,
+                'period_days': days,
+                'logs_analyzed': len(log_dicts),
+            }, 'Insights generated successfully')
+            
+        except Exception as ml_error:
+            return error_response(f'ML insights error: {str(ml_error)}', 500)
+        
+    except Exception as e:
+        return error_response(f'Error generating insights: {str(e)}', 500)
 
 @predictions_bp.route('/<prediction_id>', methods=['GET'])
 @jwt_required()

@@ -14,8 +14,14 @@ from datetime import timedelta
 db = SQLAlchemy()
 jwt = JWTManager()
 
+# Global ML models
+ml_predictor = None
+predictor_manager = None
+
 def create_app(config_name='development'):
     """Application factory function"""
+    global ml_predictor, predictor_manager
+    
     app = Flask(__name__)
     
     # Load configuration
@@ -39,6 +45,27 @@ def create_app(config_name='development'):
     # Create database tables
     with app.app_context():
         db.create_all()
+        
+        # Initialize ML models
+        try:
+            from ml.storage import get_predictor_manager
+            from ml.training import train_production_models
+            
+            predictor_manager = get_predictor_manager('backend/ml/models')
+            
+            # Try to load existing models
+            ml_predictor = predictor_manager.get_predictor()
+            
+            if ml_predictor is None:
+                print("[ML] Training new ML models...")
+                trainer, results = train_production_models()
+                ml_predictor = predictor_manager.create_new_predictor(trainer)
+                print(f"[ML] Model training complete. Results: {results}")
+            else:
+                print("[ML] Loaded existing ML models")
+        except Exception as e:
+            print(f"[ML] Error initializing ML models: {e}")
+            ml_predictor = None
     
     # Error handlers
     register_error_handlers(app)
