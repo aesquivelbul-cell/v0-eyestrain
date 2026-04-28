@@ -1,14 +1,15 @@
 'use client';
 
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Eye, BarChart3, Zap, Shield } from 'lucide-react';
 
 export default function Home() {
+  const router = useRouter();
+
   useEffect(() => {
-    // Redirect to dashboard if user is authenticated
-    // TODO: Check auth status and redirect accordingly
-    redirect('/dashboard');
+    // Note: redirect to dashboard can be handled here if needed
+    // For now, show landing page
   }, []);
 
   return (

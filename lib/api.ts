@@ -1,9 +1,9 @@
-"""
-API Service Module
-
-Handles all communication with the Flask backend.
-Manages authentication tokens and error handling.
-"""
+/**
+ * API Service Module
+ * 
+ * Handles all communication with the Flask backend.
+ * Manages authentication tokens and error handling.
+ */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
