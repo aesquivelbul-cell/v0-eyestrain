@@ -1,11 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, Check } from 'lucide-react';
 import { InputField, SelectField, Button } from '@/components/form-components';
+import { useAuth } from '@/lib/auth-context';
 
 export default function SignupPage() {
+  const router = useRouter();
+  const { signup } = useAuth();
+  
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -19,6 +24,7 @@ export default function SignupPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [signupError, setSignupError] = useState('');
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -60,20 +66,21 @@ export default function SignupPage() {
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSignupError('');
+    
     if (validateStep()) {
       if (step === 2) {
-        // Final submission
+        // Final submission - create account
         setIsLoading(true);
         try {
-          // TODO: Implement signup logic
-          console.log('Signing up with:', formData);
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          alert('Account created successfully!');
-          // Redirect to dashboard or login
-          // window.location.href = '/dashboard';
+          const fullName = `${formData.firstName} ${formData.lastName}`;
+          await signup(formData.email, formData.password, fullName);
+          // Redirect to dashboard on successful signup
+          router.push('/dashboard');
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Signup failed. Please try again.';
+          setSignupError(errorMessage);
           console.error('Signup error:', error);
-          alert('Signup failed. Please try again.');
         } finally {
           setIsLoading(false);
         }
@@ -141,6 +148,12 @@ export default function SignupPage() {
           </div>
 
           <form onSubmit={handleNext} className="space-y-6">
+            {signupError && (
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                {signupError}
+              </div>
+            )}
+            
             {step === 1 ? (
               <>
                 <div className="grid grid-cols-2 gap-4">
