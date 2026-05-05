@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Button, InputField, TextAreaField } from '@/components/form-components';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 
@@ -11,24 +11,45 @@ interface FormData {
   gender: string;
   yearLevel: string;
   fieldOfStudy: string;
-  
   // Section 2: Daily Screen Time
   academicScreenTime: string;
   nonAcademicScreenTime: string;
   primaryDevice: string;
-  
   // Section 3: Eye Strain & Symptoms
   eyeStrainFrequency: string;
   headachesFrequency: string;
   blurryVisionFrequency: string;
   dryEyesFrequency: string;
-  neckShoulderpainFrequency: string;
-  
-  // Additional data for ML model
-  sleepHours: string;
+  // Section 4: Additional Information
   screenBrightness: string;
+  sleepHours: string;
   additionalNotes: string;
 }
+
+const SectionHeader = ({ number, title }: { number: number; title: string }) => (
+  <div className="mb-8">
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+        {number}
+      </div>
+      <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+        SECTION {number}: {title}
+      </h2>
+    </div>
+    <div className="h-1 w-16 bg-primary rounded-full" />
+  </div>
+);
+
+const FormSection = ({ children }: { children: React.ReactNode }) => (
+  <div className="space-y-6">{children}</div>
+);
+
+const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="space-y-3">
+    <label className="text-sm font-medium text-foreground block">{label}</label>
+    {children}
+  </div>
+);
 
 interface ScreenTimeFormProps {
   onSubmit: (data: {
@@ -115,15 +136,15 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
     additionalNotes: '',
   });
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleInputChange = useCallback((field: keyof FormData, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
     setError('');
-  };
+  }, []);
 
-  const selectOptions = (options: string[]) => {
+  const selectOptions = useCallback((options: string[]) => {
     return (
       <div className="space-y-2">
         {options.map((option) => (
@@ -146,7 +167,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         ))}
       </div>
     );
-  };
+  }, [formData]);
 
   const validateSection = (section: number) => {
     switch (section) {
@@ -313,31 +334,6 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
       setIsLoading(false);
     }
   };
-
-  const SectionHeader = ({ number, title }: { number: number; title: string }) => (
-    <div className="mb-8">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-          {number}
-        </div>
-        <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-          SECTION {number}: {title}
-        </h2>
-      </div>
-      <div className="h-1 w-16 bg-primary rounded-full" />
-    </div>
-  );
-
-  const FormSection = ({ children }: { children: React.ReactNode }) => (
-    <div className="space-y-6">{children}</div>
-  );
-
-  const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-foreground block">{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
