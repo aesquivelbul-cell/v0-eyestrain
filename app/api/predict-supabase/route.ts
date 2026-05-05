@@ -31,39 +31,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate prediction using ML logic
+    // Calculate prediction using improved ML logic
     const screenTime = parseFloat(formData.screenTime) || 0;
-    const sleepHours = parseFloat(formData.sleepHours) || 0;
-    const brightness = parseInt(formData.brightness) || 50;
+    const sleepHours = parseFloat(formData.sleepHours) || 7;
+    const brightness = parseInt(formData.brightness) || 70;
     const symptoms = formData.symptoms || [];
+    const breaksTaken = parseInt(formData.breaksTaken) || 0;
     
-    // Simple ML model calculation
-    let riskScore = (screenTime / 12) * 50; // 0-50 based on screen time
+    // Enhanced ML model with weighted factors
+    let riskScore = 0;
     
-    // Add symptom contribution
-    const symptomCount = symptoms.length;
-    riskScore += symptomCount * 10; // 0-40 from symptoms
+    // Screen time component (35% weight) - Non-linear scaling
+    const screenTimeRisk = Math.pow(Math.min(screenTime / 10, 1), 1.2) * 35;
+    riskScore += screenTimeRisk;
     
-    // Sleep factor (lack of sleep increases risk)
-    if (sleepHours < 6) {
-      riskScore += (6 - sleepHours) * 8;
-    } else if (sleepHours > 8) {
-      riskScore -= (sleepHours - 8) * 5;
+    // Symptom component (25% weight) - Each symptom adds risk
+    const symptomCount = Array.isArray(symptoms) 
+      ? symptoms.length 
+      : Object.values(symptoms).filter(v => v).length;
+    const symptomRisk = Math.min(symptomCount * 6.25, 25);
+    riskScore += symptomRisk;
+    
+    // Sleep factor (20% weight) - Optimal sleep is 7-9 hours
+    let sleepRisk = 0;
+    if (sleepHours < 5) {
+      sleepRisk = 20; // Critical
+    } else if (sleepHours < 6) {
+      sleepRisk = 15;
+    } else if (sleepHours < 7) {
+      sleepRisk = 10;
+    } else if (sleepHours <= 8) {
+      sleepRisk = 0; // Optimal
+    } else if (sleepHours <= 9) {
+      sleepRisk = 3;
+    } else {
+      sleepRisk = 5;
     }
+    riskScore += sleepRisk;
     
-    // Brightness adjustment (too low or too high increases risk)
+    // Break behavior (10% weight) - Taking breaks reduces risk
+    const brakesBonus = Math.min(breaksTaken * 2, 10);
+    riskScore -= brakesBonus;
+    
+    // Brightness adjustment (10% weight) - Optimal is 60-80%
     const brightnessDiff = Math.abs(brightness - 70);
-    riskScore += (brightnessDiff / 100) * 15;
+    const brightnessRisk = Math.min((brightnessDiff / 100) * 10, 10);
+    riskScore += brightnessRisk;
 
     // Cap risk score between 0-100
     riskScore = Math.max(0, Math.min(100, riskScore));
 
-    // Determine risk level
+    // Determine risk level (0=Low, 1=Moderate, 2=High, 3=Critical)
     let riskLevel = 0;
-    if (riskScore < 25) riskLevel = 0;
-    else if (riskScore < 50) riskLevel = 1;
-    else if (riskScore < 75) riskLevel = 2;
-    else riskLevel = 3;
+    if (riskScore < 25) riskLevel = 0;      // Low
+    else if (riskScore < 50) riskLevel = 1; // Moderate
+    else if (riskScore < 75) riskLevel = 2; // High
+    else riskLevel = 3;                      // Critical
 
     // Calculate fatigue score
     const fatigueScore = (riskScore / 100) * 10;
@@ -72,22 +95,67 @@ export async function POST(request: NextRequest) {
     let confidence = 0.7 + (symptomCount * 0.05);
     confidence = Math.min(0.95, confidence);
 
-    // Generate recommendations
+    // Generate personalized recommendations based on risk factors
     const recommendations = [];
-    if (screenTime > 6) {
-      recommendations.push('Take a 5-minute break every 20 minutes of screen time');
+    
+    // Screen time recommendations
+    if (screenTime > 8) {
+      recommendations.push('Your screen time is very high. Follow the 20-20-20 rule: Every 20 minutes, look at something 20 feet away for 20 seconds');
+    } else if (screenTime > 6) {
+      recommendations.push('Take regular 5-minute breaks every hour to reduce eye strain');
+    } else if (screenTime > 4) {
+      recommendations.push('Continue maintaining regular breaks to prevent eye strain');
     }
-    if (brightness < 40 || brightness > 90) {
-      recommendations.push('Adjust screen brightness to 60-70% for optimal eye comfort');
+    
+    // Brightness recommendations
+    if (brightness < 40) {
+      recommendations.push('Your screen is too dark. Increase brightness to 60-80% to reduce eye strain and improve visibility');
+    } else if (brightness > 85) {
+      recommendations.push('Your screen is too bright. Reduce brightness to 60-80% to prevent eye fatigue');
     }
-    if (sleepHours < 7) {
-      recommendations.push('Aim for 7-8 hours of sleep to improve eye health');
+    
+    // Sleep recommendations
+    if (sleepHours < 6) {
+      recommendations.push('CRITICAL: Get at least 6-8 hours of sleep. Poor sleep significantly increases eye strain and fatigue');
+    } else if (sleepHours < 7) {
+      recommendations.push('Try to get 7-8 hours of sleep per night for optimal eye health recovery');
     }
-    if (symptoms.includes('dryEyes')) {
-      recommendations.push('Use eye drops and follow the 20-20-20 rule regularly');
+    
+    // Break frequency recommendations
+    if (breaksTaken < 3 && screenTime > 4) {
+      recommendations.push('You took very few breaks. Aim for at least 3-4 breaks during your screen time');
     }
-    if (symptoms.length >= 3) {
-      recommendations.push('Consider scheduling an eye exam with a professional');
+    
+    // Symptom-specific recommendations
+    const symptomArray = Array.isArray(symptoms) ? symptoms : Object.entries(symptoms).filter(([, v]) => v).map(([k]) => k);
+    
+    if (symptomArray.includes('dryEyes') || symptomArray.includes('dry_eyes')) {
+      recommendations.push('Dry eyes detected: Use lubricating eye drops, blink frequently, and consider a humidifier');
+    }
+    if (symptomArray.includes('headaches')) {
+      recommendations.push('Headaches reported: Check your monitor position (eye level), adjust lighting, and reduce glare');
+    }
+    if (symptomArray.includes('blurryVision') || symptomArray.includes('blurry_vision')) {
+      recommendations.push('Blurry vision detected: Reduce screen brightness, increase font size, and take more frequent breaks');
+    }
+    if (symptomArray.includes('eyeStrain') || symptomArray.includes('eye_strain')) {
+      recommendations.push('Eye strain detected: Position your monitor 20-26 inches away, keep it at eye level, and use anti-glare screen');
+    }
+    
+    // Risk level-based recommendations
+    if (riskLevel >= 2) {
+      recommendations.push('Your risk level is HIGH. Consider scheduling an eye exam with a professional optometrist');
+    }
+    if (riskLevel >= 3) {
+      recommendations.push('URGENT: Your eye strain risk is CRITICAL. Seek professional eye care and significantly reduce screen time');
+    }
+    
+    // General wellness
+    if (recommendations.length < 4) {
+      recommendations.push('Maintain good posture while working on screens to reduce neck and shoulder strain');
+    }
+    if (recommendations.length < 5) {
+      recommendations.push('Use blue light filtering glasses or enable blue light filter on your devices during evening hours');
     }
 
     // Save daily log to Supabase

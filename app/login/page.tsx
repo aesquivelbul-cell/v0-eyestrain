@@ -156,24 +156,7 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          {/* Demo/Admin Credentials */}
-          <div className="mt-6 p-4 bg-muted/30 border border-border rounded-lg">
-            <p className="text-xs font-semibold text-foreground mb-2">Demo Credentials:</p>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <div>
-                <p className="font-mono bg-background/50 p-2 rounded mb-1">
-                  admin@eyeguard.local / admin123456
-                </p>
-                <p className="text-xs">→ Admin access to import data</p>
-              </div>
-              <div>
-                <p className="font-mono bg-background/50 p-2 rounded mb-1">
-                  demo_student_1@survey.local / demo123456
-                </p>
-                <p className="text-xs">→ Test student account (after importing data)</p>
-              </div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
