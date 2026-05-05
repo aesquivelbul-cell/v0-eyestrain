@@ -1,12 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { mockAuth } from './mock-auth';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
   id: string;
   email: string;
-  name: string;
   created_at: string;
 }
 
@@ -15,9 +16,8 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
-  isFirstTimeUser: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -28,39 +28,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const supabase = createClient();
 
   // Check if user is already logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const currentUser = mockAuth.getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          // Check if user has any daily logs
-          const userData = mockAuth.getUserByEmail(currentUser.email);
-          const hasLogs = userData?.dailyLogs && userData.dailyLogs.length > 0;
-          setIsFirstTimeUser(!hasLogs);
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        
+        if (supabaseUser) {
+          setUser({
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            created_at: supabaseUser.created_at || new Date().toISOString(),
+          });
         }
-        // Add small delay to ensure proper state updates
-        await new Promise(resolve => setTimeout(resolve, 100));
-        setIsLoading(false);
       } catch (err) {
         console.error('Auth check failed:', err);
+      } finally {
         setIsLoading(false);
       }
     };
 
     checkAuth();
-  }, []);
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            created_at: session.user.created_at || new Date().toISOString(),
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [supabase]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const session = mockAuth.login(email, password);
-      setUser(session.user);
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email || '',
+          created_at: data.user.created_at || new Date().toISOString(),
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
@@ -70,15 +102,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const session = mockAuth.register(email, password, name);
-      setUser(session.user);
-      // New users are first-time users
-      setIsFirstTimeUser(true);
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email || '',
+          created_at: data.user.created_at || new Date().toISOString(),
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Signup failed';
       setError(errorMessage);
@@ -88,11 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setError(null);
-    mockAuth.logout();
-    setUser(null);
-    setIsFirstTimeUser(false);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+      setUser(null);
+    }
   };
 
   const clearError = () => setError(null);
@@ -102,9 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAuthenticated: mockAuth.isAuthenticated(),
+        isAuthenticated: user !== null,
         error,
-        isFirstTimeUser,
         login,
         signup,
         logout,

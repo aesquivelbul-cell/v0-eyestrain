@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { Eye } from 'lucide-react';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -21,9 +22,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="mt-4 text-foreground text-lg">Loading...</p>
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border-2 border-primary border-t-primary">
+            <Eye className="w-8 h-8 text-primary animate-pulse" />
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-foreground">Loading</p>
+            <p className="text-sm text-muted-foreground">Verifying your session...</p>
+          </div>
         </div>
       </div>
     );
