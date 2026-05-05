@@ -1,356 +1,274 @@
 # EyeGuard - Quick Start Guide
 
-Get up and running with the complete EyeGuard application in minutes.
+Welcome to EyeGuard! This guide will help you get started with the complete eye health monitoring system using Next.js and Supabase.
 
 ## Prerequisites
-- Node.js 16+ and npm/pnpm
-- Python 3.8+
-- Git
+- Node.js 16+ and pnpm
+- Supabase account (free tier available at https://supabase.com)
+- Modern web browser
 
-## Project Structure
-```
-eyeguard/
-├── app/                    # Next.js frontend
-├── components/             # React components
-├── backend/                # Flask API
-├── public/                 # Static assets
-└── scripts/               # Utility scripts
-```
+## Project Setup
 
-## Step 1: Frontend Setup (React/Next.js)
-
+### 1. Install Dependencies
 ```bash
-# Navigate to project root (if in frontend already, skip this)
-cd /path/to/eyeguard
-
-# Install frontend dependencies
+cd /vercel/share/v0-project
 pnpm install
+```
 
-# Start development server
+### 2. Environment Variables
+The Supabase credentials are already configured in your Vercel project:
+- `NEXT_PUBLIC_SUPABASE_URL` ✓
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` ✓
+
+No additional setup required!
+
+### 3. Start Development Server
+```bash
 pnpm dev
-
-# Frontend will run on http://localhost:3000
 ```
 
-## Step 2: Backend Setup (Flask)
+The app will be available at `http://localhost:3000`
 
-In a new terminal:
+## First Time Using EyeGuard
 
-```bash
-# Navigate to backend directory
-cd backend
+### Step 1: Create Your Account
+1. Open the app in your browser
+2. Click **"Sign Up"** on the home page
+3. Enter your email address
+4. Create a secure password
+5. Click **"Sign Up"**
+6. You'll be automatically logged in!
 
-# Create virtual environment
-python -m venv venv
+### Step 2: Complete Your Profile
+1. Go to **Settings** (in the sidebar)
+2. Fill in your profile information:
+   - First and Last Name
+   - Age
+   - Year Level (1st Year, 2nd Year, etc.)
+   - Field of Study
+3. Click **"Save Settings"**
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
+### Step 3: Log Your Eye Health Data
+1. Go to **Daily Log** (in the sidebar)
+2. Enter today's data:
+   - **Screen Time**: Total hours spent on screens
+   - **Breaks Taken**: Number of breaks you took
+   - **Symptoms**: Check any you experienced (dry eyes, headaches, etc.)
+   - **Screen Brightness**: Your typical brightness level
+3. Click **"Save Daily Log"**
+4. You'll instantly get:
+   - **Risk Assessment**: Low, Moderate, High, or Critical
+   - **Personalized Recommendations**: Tips to protect your eyes
 
-# Install dependencies
-pip install -r requirements.txt
+### Step 4: View Your Analytics
+1. Go to **Analytics** to see:
+   - Screen time trends over days/weeks
+   - Device usage breakdown
+   - Symptom patterns
+   - Risk progression
 
-# Create .env file
-cat > .env << EOF
-FLASK_ENV=development
-FLASK_APP=app.py
-SECRET_KEY=dev-secret-key-change-in-production
-JWT_SECRET=jwt-secret-key-change-in-production
-DATABASE_URL=sqlite:///eyeguard.db
-CORS_ORIGINS=http://localhost:3000
-EOF
+2. Go to **Trends** to see:
+   - Your health metrics
+   - Progress over time
+   - Prediction accuracy
 
-# Run Flask server
-python app.py
+## Features
 
-# Backend API will run on http://localhost:5000
-```
+### Dashboard
+- Overview of your current risk level
+- Quick stats on screen time
+- Latest predictions
+- Health recommendations
 
-## Step 3: Update Frontend API Configuration
+### Daily Log
+- Track screen time across devices
+- Report symptoms
+- Note environmental factors (brightness)
+- Get instant risk predictions
 
-The frontend is configured to use `http://localhost:5000/api` by default.
+### Risk Prediction
+- AI-powered risk assessment
+- Factor analysis
+- Prevention strategies
+- 7-day forecast
 
-If you're using a different backend URL, update the environment variable:
+### Analytics
+- Comprehensive health tracking
+- Visual charts and trends
+- Export your data
+- Health insights
 
-```bash
-# In frontend .env.local or environment variable
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
-```
+### Settings
+- Manage your profile
+- Configure notifications
+- Privacy preferences
+- Account management
 
-## Step 4: Test the Application
+## Understanding Your Risk Level
 
-### Test Frontend
-1. Open http://localhost:3000 in your browser
-2. You should see the EyeGuard landing page
-3. Click "Sign Up" to register or "Login" to signin
+### Low Risk (0-25%)
+✓ Your habits are healthy
+✓ Keep maintaining regular breaks
+✓ Continue current practices
 
-### Test Backend API
+### Moderate Risk (25-50%)
+⚠ Monitor your screen time more closely
+⚠ Take more frequent breaks
+⚠ Implement some recommendations
 
-```bash
-# Register a new user
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "firstName": "John",
-    "lastName": "Doe",
-    "age": 22,
-    "password": "SecurePass123"
-  }'
+### High Risk (50-75%)
+⚠⚠ Increase break frequency
+⚠⚠ Reduce screen time if possible
+⚠⚠ Follow all recommendations closely
 
-# Expected response includes accessToken
-# Copy the accessToken for next requests
+### Critical Risk (75-100%)
+🚨 Urgent action needed
+🚨 Significantly reduce screen time
+🚨 Consider professional eye care
 
-# Login
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "SecurePass123"
-  }'
+## Key Features Explained
 
-# Get user profile (replace TOKEN with accessToken)
-curl -H "Authorization: Bearer TOKEN" \
-  http://localhost:5000/api/users/profile
-```
+### 20-20-20 Rule
+Every 20 minutes of screen time:
+- Look at something 20 feet away
+- For at least 20 seconds
+- This reduces eye strain by 60%
 
-## Step 5: Create Sample Data
+### Screen Brightness
+- Optimal: 60-80%
+- Too low causes eye strain
+- Too high causes brightness fatigue
+- Adjust based on room lighting
 
-In the frontend, navigate to the "Daily Log" page and submit some test data:
-
-```
-Screen Time: 7.5 hours
-Breaks Taken: 5
-Eye Strain: Moderate (2)
-Headaches: Mild (1)
-Dry Eyes: Moderate (2)
-Blurry Vision: None (0)
-Screen Brightness: 75%
-```
-
-This data is now stored in the backend database and will appear in your analytics.
-
-## Development Workflow
-
-### Adding a New Feature
-
-1. **Frontend Component**
-   ```bash
-   # Create component in /components
-   # Update /app/[page]/page.tsx to use component
-   ```
-
-2. **Backend Endpoint**
-   ```bash
-   # Create route in /backend/routes/
-   # Add model updates in /backend/models.py if needed
-   # Register blueprint in app.py
-   ```
-
-3. **Test Integration**
-   - Test frontend page loads
-   - Test API endpoints with curl
-   - Check database with SQLite browser
-
-### File Organization
-
-**Frontend**
-- Pages: `/app/*/page.tsx`
-- Components: `/components/*.tsx`
-- Styles: Using Tailwind CSS in components
-- Types: TypeScript in files
-
-**Backend**
-- Models: `/backend/models.py`
-- Routes: `/backend/routes/*.py`
-- Config: `/backend/config.py`
-- Utils: `/backend/utils/*.py`
+### Symptoms to Track
+- **Dry Eyes**: Feeling of dryness or grittiness
+- **Eye Strain**: General fatigue or tension
+- **Headaches**: Head or sinus pain
+- **Blurry Vision**: Difficulty focusing
+- **Neck Pain**: Related to poor posture
 
 ## Troubleshooting
 
-### Frontend won't start
+### Can't Sign Up?
+- Check email is valid
+- Password must be 6+ characters
+- Make sure you're using a new email
+- Check browser console for errors
+
+### Can't Log In?
+- Verify email is correct
+- Verify password is correct
+- Make sure you've signed up first
+- Try clearing browser cookies
+
+### Can't Access Daily Log?
+- Make sure you're logged in
+- Check the Auth Guard loading screen
+- Refresh the page
+- Try logging out and back in
+
+### Data Not Saving?
+- Check internet connection
+- Verify Supabase is accessible
+- Check browser console for errors
+- Try submitting again
+
+### Forget Password?
+Currently no self-serve password reset. Contact support or:
+1. Clear your browser data
+2. Create a new account with different email
+3. You can delete your old account in Supabase dashboard
+
+## Project Structure
+
+```
+/vercel/share/v0-project/
+├── app/                          # Next.js pages and routes
+│   ├── page.tsx                  # Home/landing page
+│   ├── login/page.tsx            # Login page
+│   ├── signup/page.tsx           # Sign up page
+│   ├── daily-log/page.tsx        # Daily logging
+│   ├── analytics/page.tsx        # Analytics dashboard
+│   ├── risk-prediction/page.tsx  # Risk predictions
+│   ├── trends/page.tsx           # Trends view
+│   ├── settings/page.tsx         # User settings
+│   ├── dashboard/page.tsx        # Main dashboard
+│   ├── layout.tsx                # Root layout
+│   └── api/                      # API routes
+│
+├── components/                   # React components
+│   ├── auth-guard.tsx           # Protected route guard
+│   ├── screen-time-form.tsx     # Data collection form
+│   ├── main-layout.tsx          # Main layout wrapper
+│   └── ...                      # Other components
+│
+├── lib/                         # Utilities
+│   ├── auth-context.tsx         # Authentication provider
+│   └── supabase/                # Supabase setup
+│
+├── docs/                        # Documentation
+│   ├── AUTHENTICATION.md        # Auth guide
+│   └── ...
+│
+└── database/                    # Database schema
+    └── schema.sql               # SQL setup
+```
+
+## Development
+
+### Running Tests
 ```bash
-# Clear cache and reinstall
-pnpm clean
-pnpm install
-pnpm dev
+# Add testing with Jest (coming soon)
 ```
 
-### Backend port already in use
+### Building for Production
 ```bash
-# Change port in backend/app.py or use:
-# (Requires modifying app.run() line)
+pnpm build
+pnpm start
 ```
 
-### Database errors
+### Linting & Formatting
 ```bash
-# Delete and reset database
-rm backend/eyeguard.db
-# Restart backend - new database will be created
+pnpm lint
 ```
 
-### CORS errors
-```
-# Ensure CORS_ORIGINS in backend/.env includes frontend URL
-CORS_ORIGINS=http://localhost:3000
-```
+## Database (Supabase)
 
-### API not responding
-```bash
-# Check backend is running
-curl http://localhost:5000/api/auth/verify
+Your data is stored in Supabase with these tables:
+- `auth.users` - User accounts (managed by Supabase)
+- `user_profiles` - Additional profile info
+- `daily_logs` - Your daily screen time data
+- `predictions` - ML prediction results
+- `user_settings` - Your preferences
 
-# Check frontend API URL configuration
-# Look for NEXT_PUBLIC_API_URL or environment variable
-```
+All data is protected with Row-Level Security (RLS).
 
-## Project Status
+## Security
 
-### Phase 1: Frontend ✅ COMPLETE
-- Landing page with features
-- Dashboard with mock data
-- Daily log form
-- Analytics pages
-- Risk prediction interface
-- Trends visualization
-- Settings page
-- Login/Signup pages
+✓ Passwords are hashed (Supabase Auth)
+✓ Sessions use HTTP-only cookies
+✓ Data is encrypted in transit (HTTPS)
+✓ Row-Level Security protects your data
+✓ CSRF protection enabled
+✓ Regular security updates
 
-### Phase 2: Backend ✅ COMPLETE
-- Flask API setup
-- Database models (SQLAlchemy)
-- Authentication (JWT)
-- User management endpoints
-- Daily logs CRUD
-- Analytics aggregation
-- Predictions structure
-- Error handling
+## Getting Help
 
-### Phase 3: ML Model (NEXT)
-- Scikit-learn model training
-- Prediction algorithms
-- Model serialization
-- Integration with /api/predictions
+1. Check `/docs/AUTHENTICATION.md` for auth help
+2. Review `/MIGRATION_COMPLETE.md` for tech details
+3. Check browser console (F12) for errors
+4. Try clearing cache and reloading
 
-### Phase 4: Integration (AFTER Phase 3)
-- Connect frontend to real APIs
-- Remove mock data
-- Add loading states
-- Handle authentication flow
+## What's Next?
 
-### Phase 5: Analytics (AFTER Phase 4)
-- Populate real data
-- Generate insights
-- Build visualizations
-
-### Phase 6: Deployment (FINAL)
-- Production build
-- Deploy frontend
-- Deploy backend
-- Setup CI/CD
-
-## Environment Variables
-
-### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
-```
-
-### Backend (.env)
-```
-FLASK_ENV=development
-FLASK_APP=app.py
-SECRET_KEY=dev-secret-key-change-in-production
-JWT_SECRET=jwt-secret-key-change-in-production
-DATABASE_URL=sqlite:///eyeguard.db
-CORS_ORIGINS=http://localhost:3000
-```
-
-## Useful Commands
-
-```bash
-# Frontend
-pnpm dev              # Start dev server
-pnpm build            # Build for production
-pnpm start            # Run production build
-pnpm lint             # Run linting
-
-# Backend (in backend/ directory)
-python app.py         # Start server
-pytest                # Run tests
-python -c "from app import db; db.create_all()"  # Reset DB
-```
-
-## Database Management
-
-### View Database
-```bash
-# Using sqlite3 command line
-sqlite3 backend/eyeguard.db
-
-# Query examples
-sqlite> SELECT * FROM users;
-sqlite> SELECT * FROM daily_logs;
-sqlite> .quit
-```
-
-### Reset Database
-```bash
-cd backend
-rm eyeguard.db
-python app.py  # Will recreate database
-```
-
-## Common Tasks
-
-### Register User via API
-```bash
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","firstName":"John","lastName":"Doe","age":22,"password":"SecurePass123"}'
-```
-
-### Add Daily Log
-```bash
-curl -X POST http://localhost:5000/api/logs \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{"screenTimeHours":7.5,"breaksTaken":5,"eyeStrainLevel":2,"headachesLevel":1,"blurryVisionLevel":0,"dryEyesLevel":2,"screenBrightness":75}'
-```
-
-### Get Analytics Summary
-```bash
-curl http://localhost:5000/api/analytics/summary \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-## Next Steps
-
-1. **Add Real ML Model**: Implement scikit-learn model in Phase 3
-2. **Connect Frontend/Backend**: Update API calls to use real endpoints
-3. **Add Tests**: Create unit and integration tests
-4. **Deploy**: Setup production environment
-
-## Resources
-
-- **Frontend Docs**: Check `PROJECT_STRUCTURE.md`
-- **Backend Docs**: Check `backend/README.md`
-- **Phase Details**: Check `PHASE_2_SUMMARY.md`
-- **Architecture**: Check `backend/app.py` comments
-
-## Support
-
-For issues:
-1. Check the README files
-2. Review error messages
-3. Check console logs (both frontend and backend)
-4. Verify environment variables are set
-5. Ensure both servers are running
+✓ Track your eye health daily
+✓ Monitor trends over weeks
+✓ Follow personalized recommendations
+✓ Share results with eye care professionals
+✓ Help improve the app with feedback
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: April 28, 2026
-**Status**: Ready for Phase 3 (ML Model Development)
+**Version**: 2.0.0 (Supabase Auth)
+**Last Updated**: May 2026
+**Status**: Production Ready with Real Authentication
