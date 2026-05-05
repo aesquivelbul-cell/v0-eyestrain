@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Eye, AlertCircle, TrendingUp, Clock, RefreshCw, LogOut } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
-import { mockAuth } from '@/lib/mock-auth';
+import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
@@ -13,35 +12,106 @@ import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const supabase = createClient();
   
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [prediction, setPrediction] = useState<any>(null);
   const [hasData, setHasData] = useState(false);
 
-  // Redirect if not authenticated and check for existing data
+  // Check authentication and load user data
   useEffect(() => {
-    if (!isAuthenticated) {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (!authUser) {
+          router.push('/login');
+          return;
+        }
+
+        setUser(authUser);
+
+        // Load user's daily logs
+        const { data: logs, error: logsError } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false });
+
+        if (logsError) {
+          console.error('Error loading logs:', logsError);
+        } else if (logs && logs.length > 0) {
+          setHasData(true);
+
+          // Load latest prediction
+          const { data: predictions } = await supabase
+            .from('predictions')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (predictions) {
+            setPrediction(predictions);
+          }
+        } else {
+          setHasData(false);
+        }
+      } catch (err) {
+        console.error('Auth check error:', err);
+        router.push('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router, supabase]);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
       router.push('/login');
-    } else if (user) {
-      // Check if user has any daily logs
-      const userData = mockAuth.getUserByEmail(user.email);
-      const userHasLogs = userData?.dailyLogs && userData.dailyLogs.length > 0;
-      setHasData(userHasLogs);
+    } catch (err) {
+      console.error('Logout failed:', err);
     }
-  }, [isAuthenticated, router, user]);
+  };
 
   const handleRefreshPredictions = async () => {
     setIsRefreshing(true);
     setError('');
     try {
-      // Simulate refresh
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // In a real app, we would recalculate predictions from the latest data
+      if (user) {
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (logs && logs.length > 0) {
+          setHasData(true);
+          const { data: predictions } = await supabase
+            .from('predictions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (predictions) {
+            setPrediction(predictions);
+          }
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh predictions');
+      setError(err instanceof Error ? err.message : 'Failed to refresh');
     } finally {
       setIsRefreshing(false);
     }
@@ -50,9 +120,8 @@ export default function DashboardPage() {
   const handleFormSubmit = async (formData: any) => {
     try {
       setError('');
-      
-      // Call the prediction API
-      const response = await fetch('/api/predict', {
+
+      const response = await fetch('/api/predict-supabase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,61 +134,30 @@ export default function DashboardPage() {
       }
 
       const predictionResult = await response.json();
-      
-      // Save the daily log to the user
-      if (user) {
-        const dailyLog = {
-          id: `log_${Date.now()}`,
-          date: new Date().toISOString().split('T')[0],
-          screenTime: formData.screenTime,
-          breaksTaken: formData.breaksTaken || 0,
-          eyeStrain: formData.symptoms.includes('eyeStrain') ? 1 : 0,
-          headaches: formData.symptoms.includes('headaches') ? 1 : 0,
-          blurryVision: formData.symptoms.includes('blurryVision') ? 1 : 0,
-          dryEyes: formData.symptoms.includes('dryEyes') ? 1 : 0,
-          brightness: formData.brightness,
-          notes: formData.notes,
-          sleepHours: formData.sleepHours,
-          riskLevel: ['Low', 'Moderate', 'High', 'Critical'][predictionResult.risk_level],
-          // Store additional survey data
-          email: formData.email,
-          age: formData.age,
-          gender: formData.gender,
-          yearLevel: formData.yearLevel,
-          fieldOfStudy: formData.fieldOfStudy,
-          academicScreenTime: formData.academicScreenTime,
-          nonAcademicScreenTime: formData.nonAcademicScreenTime,
-          primaryDevice: formData.primaryDevice,
-          eyeStrainFrequency: formData.eyeStrainFrequency,
-          headachesFrequency: formData.headachesFrequency,
-          blurryVisionFrequency: formData.blurryVisionFrequency,
-          dryEyesFrequency: formData.dryEyesFrequency,
-        };
-
-        mockAuth.addDailyLogToUser(user.email, dailyLog);
-      }
-
-      // Update prediction state
       setPrediction(predictionResult);
       setHasData(true);
       setShowForm(false);
+
+      handleRefreshPredictions();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to process data';
       setError(message);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push('/login');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
-
-  if (!isAuthenticated) {
-    return null;
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <div className="inline-block p-4 bg-muted rounded-full">
+              <Eye className="w-8 h-8 text-primary animate-pulse" />
+            </div>
+            <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
   }
 
   // Show empty state if no data and not showing form
@@ -130,7 +168,7 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-                Welcome, {user?.name?.split(' ')[0] || 'User'}
+                Welcome, {user?.email?.split('@')[0] || 'User'}
               </h1>
               <p className="text-muted-foreground mt-2">
                 Get started with your eye health analysis
@@ -196,17 +234,13 @@ export default function DashboardPage() {
   };
 
   const getRiskColor = (level: number) => {
-    if (level === 0) return 'text-green-600';
-    if (level === 1) return 'text-yellow-600';
-    if (level === 2) return 'text-orange-600';
-    return 'text-red-600';
+    const colors = ['text-green-600', 'text-yellow-600', 'text-orange-600', 'text-destructive'];
+    return colors[level] || 'text-primary';
   };
 
   const getRiskBgColor = (level: number) => {
-    if (level === 0) return 'bg-green-100 dark:bg-green-900';
-    if (level === 1) return 'bg-yellow-100 dark:bg-yellow-900';
-    if (level === 2) return 'bg-orange-100 dark:bg-orange-900';
-    return 'bg-red-100 dark:bg-red-900';
+    const colors = ['bg-green-500/10', 'bg-yellow-500/10', 'bg-orange-500/10', 'bg-destructive/10'];
+    return colors[level] || 'bg-primary/10';
   };
 
   return (
@@ -216,7 +250,7 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-              Welcome Back, {user?.name?.split(' ')[0] || 'User'}
+              Your Eye Health Dashboard
             </h1>
             <p className="text-muted-foreground mt-2">
               Here&apos;s your real-time eye health analysis powered by AI

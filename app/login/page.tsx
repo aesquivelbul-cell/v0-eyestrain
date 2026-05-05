@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import { InputField, Button } from '@/components/form-components';
-import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const supabase = createClient();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -31,7 +31,12 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(formData.email, formData.password);
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInError) throw signInError;
       router.push('/dashboard');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';

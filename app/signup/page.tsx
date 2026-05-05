@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, Check } from 'lucide-react';
 import { InputField, SelectField, Button } from '@/components/form-components';
-import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase/client';
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup } = useAuth();
+  const supabase = createClient();
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -70,11 +70,24 @@ export default function SignupPage() {
     
     if (validateStep()) {
       if (step === 2) {
-        // Final submission - create account
+        // Final submission - create account with Supabase
         setIsLoading(true);
         try {
           const fullName = `${formData.firstName} ${formData.lastName}`;
-          await signup(formData.email, formData.password, fullName);
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+                `${window.location.origin}/auth/callback`,
+              data: {
+                name: fullName,
+                age: formData.age,
+              },
+            },
+          });
+
+          if (signUpError) throw signUpError;
           // Redirect to dashboard on successful signup
           router.push('/dashboard');
         } catch (error) {

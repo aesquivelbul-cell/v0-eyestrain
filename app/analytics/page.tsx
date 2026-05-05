@@ -2,27 +2,54 @@
 
 import { Calendar, Download, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/main-layout';
-import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, StatCard, MetricCard } from '@/components/dashboard-card';
 import { Button, SelectField } from '@/components/form-components';
-import { useAuth } from '@/lib/auth-context';
-import { mockAuth } from '@/lib/mock-auth';
+import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function AnalyticsPage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const supabase = createClient();
   const [timeRange, setTimeRange] = useState('7days');
+  const [isLoading, setIsLoading] = useState(true);
   const [userLogs, setUserLogs] = useState<any[]>([]);
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      const userData = mockAuth.getUserByEmail(user.email);
-      const logs = userData?.dailyLogs || [];
-      setUserLogs(logs);
-      setHasData(logs.length > 0);
-    }
-  }, [user]);
+    const loadData = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: logs, error } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error loading logs:', error);
+        } else {
+          setUserLogs(logs || []);
+          setHasData((logs || []).length > 0);
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        router.push('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [router, supabase]);
 
   // Calculate real data from user logs
   const calculateAnalytics = () => {
@@ -78,27 +105,34 @@ export default function AnalyticsPage() {
     alert('Exporting analytics data...');
   };
 
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <p className="text-lg text-muted-foreground">Loading analytics...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
   // Show empty state if no data
   if (!hasData) {
     return (
-      <AuthGuard>
-        <MainLayout>
-          <div className="space-y-8">
-            <div className="text-center py-20">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">No Data Available</h1>
-              <p className="text-muted-foreground text-lg mb-8">
-                You haven&apos;t submitted any survey data yet. Complete the survey on your dashboard to view analytics and insights about your eye health.
-              </p>
-            </div>
+      <MainLayout>
+        <div className="space-y-8">
+          <div className="text-center py-20">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">No Data Available</h1>
+            <p className="text-muted-foreground text-lg mb-8">
+              You haven&apos;t submitted any survey data yet. Complete the survey on your dashboard to view analytics and insights about your eye health.
+            </p>
           </div>
-        </MainLayout>
-      </AuthGuard>
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <AuthGuard>
-      <MainLayout>
+    <MainLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="space-y-4 md:space-y-0">
@@ -264,7 +298,6 @@ export default function AnalyticsPage() {
           </div>
         </ChartCard>
       </div>
-      </MainLayout>
-    </AuthGuard>
+    </MainLayout>
   );
 }
