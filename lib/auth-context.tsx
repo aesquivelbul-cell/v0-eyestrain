@@ -9,6 +9,7 @@ export interface User {
   id: string;
   email: string;
   created_at: string;
+  displayName?: string;
 }
 
 export interface AuthContextType {
@@ -48,10 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         
         if (mounted && supabaseUser) {
+          const displayName = supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.first_name || supabaseUser.email?.split('@')[0] || 'User';
           setUser({
             id: supabaseUser.id,
             email: supabaseUser.email || '',
             created_at: supabaseUser.created_at || new Date().toISOString(),
+            displayName: displayName,
           });
         }
       } catch (err) {
@@ -66,21 +69,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
 
     // Listen for auth state changes
-    const setupSubscription = async () => {
+    let unsubscribe: (() => void) | undefined;
+    
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       try {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-          return;
-        }
-        
         const supabase = createClient();
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (mounted) {
               if (session?.user) {
+                const displayName = session.user.user_metadata?.name || session.user.user_metadata?.first_name || session.user.email?.split('@')[0] || 'User';
                 setUser({
                   id: session.user.id,
                   email: session.user.email || '',
                   created_at: session.user.created_at || new Date().toISOString(),
+                  displayName: displayName,
                 });
               } else {
                 setUser(null);
@@ -88,19 +91,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         );
-
-        return () => {
-          subscription?.unsubscribe();
-        };
+        
+        unsubscribe = () => subscription?.unsubscribe();
       } catch (err) {
         console.error('Auth subscription error:', err);
       }
-    };
-
-    setupSubscription();
+    }
 
     return () => {
       mounted = false;
+      unsubscribe?.();
     };
   }, []);
 
@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
+      const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -119,10 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
+        const displayName = data.user.user_metadata?.name || data.user.user_metadata?.first_name || data.user.email?.split('@')[0] || 'User';
         setUser({
           id: data.user.id,
           email: data.user.email || '',
           created_at: data.user.created_at || new Date().toISOString(),
+          displayName: displayName,
         });
       }
     } catch (err) {
@@ -139,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
+      const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -149,10 +153,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
+        const displayName = data.user.user_metadata?.name || data.user.user_metadata?.first_name || data.user.email?.split('@')[0] || 'User';
         setUser({
           id: data.user.id,
           email: data.user.email || '',
           created_at: data.user.created_at || new Date().toISOString(),
+          displayName: displayName,
         });
       }
     } catch (err) {
@@ -167,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setError(null);
     try {
+      const supabase = createClient();
       await supabase.auth.signOut();
       setUser(null);
     } catch (err) {

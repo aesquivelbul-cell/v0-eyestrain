@@ -44,14 +44,18 @@ export default function DashboardPage() {
           .single();
 
         // Combine auth user with profile data
+        const displayName = profile?.first_name && profile?.last_name 
+          ? `${profile.first_name} ${profile.last_name}`
+          : profile?.first_name 
+          ? profile.first_name
+          : authUser.user_metadata?.name 
+          ? authUser.user_metadata.name
+          : authUser.email?.split('@')[0] || 'User';
+
         const userData = {
           ...authUser,
           profile: profile || null,
-          displayName: profile?.first_name && profile?.last_name 
-            ? `${profile.first_name} ${profile.last_name}`
-            : profile?.first_name 
-            ? profile.first_name
-            : authUser.email?.split('@')[0] || 'User'
+          displayName: displayName
         };
 
         setUser(userData);

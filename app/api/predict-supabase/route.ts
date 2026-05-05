@@ -180,12 +180,12 @@ export async function POST(request: NextRequest) {
       recommendations.push('Use blue light filtering glasses or enable blue light filter on your devices during evening hours');
     }
 
-    // Save daily log to Supabase
+    // Save daily log to Supabase (use upsert to handle updates)
     const today = new Date().toISOString().split('T')[0];
     
     const { data: dailyLog, error: logError } = await supabase
       .from('daily_logs')
-      .insert({
+      .upsert({
         user_id: user.id,
         date: today,
         email: formData.email,
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
         sleep_hours: sleepHours,
         notes: formData.notes,
         risk_level: ['Low', 'Moderate', 'High', 'Critical'][riskLevel],
-      })
+      }, { onConflict: 'user_id,date' })
       .select()
       .single();
 
@@ -222,7 +222,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save prediction to Supabase
+    // Delete old predictions for this daily log (if updating)
+    await supabase
+      .from('predictions')
+      .delete()
+      .eq('daily_log_id', dailyLog.id);
+
+    // Save new prediction to Supabase
     const { data: prediction, error: predictionError } = await supabase
       .from('predictions')
       .insert({
