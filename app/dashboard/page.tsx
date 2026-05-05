@@ -87,6 +87,13 @@ export default function DashboardPage() {
     checkAuth();
   }, [router, supabase]);
 
+  // Redirect to daily log if no data
+  useEffect(() => {
+    if (!isLoading && !hasData) {
+      router.push('/daily-log');
+    }
+  }, [hasData, isLoading, router]);
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -145,11 +152,6 @@ export default function DashboardPage() {
   }
 
   if (!hasData) {
-    // Redirect new users to daily log form
-    React.useEffect(() => {
-      router.push('/daily-log');
-    }, [router]);
-
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-screen">
