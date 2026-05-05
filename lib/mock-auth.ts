@@ -31,6 +31,27 @@ export interface MockUser {
   name: string;
   passwordHash: string;
   created_at: string;
+  age?: number;
+  gender?: string;
+  yearOfStudy?: string;
+  major?: string;
+  primaryDevice?: string;
+  dailyLogs?: DailyLog[];
+}
+
+export interface DailyLog {
+  id: string;
+  date: string;
+  screenTime: number;
+  breaksTaken: number;
+  eyeStrain: number;
+  headaches: number;
+  blurryVision: number;
+  dryEyes: number;
+  brightness: number;
+  notes: string;
+  sleepHours: number;
+  riskLevel: string;
 }
 
 export interface AuthSession {
@@ -181,6 +202,66 @@ class MockAuthService {
 
   getSession() {
     return this.session;
+  }
+
+  // Bulk import methods
+  importUsers(usersData: Array<{email: string; name: string; password?: string; age?: number; gender?: string; yearOfStudy?: string; major?: string; primaryDevice?: string; dailyLogs?: DailyLog[]}>) {
+    const importedUsers = [];
+    for (const userData of usersData) {
+      try {
+        const password = userData.password || 'import123456';
+        const newUser: MockUser = {
+          id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          email: userData.email,
+          name: userData.name,
+          passwordHash: hashPassword(password),
+          created_at: new Date().toISOString(),
+          age: userData.age,
+          gender: userData.gender,
+          yearOfStudy: userData.yearOfStudy,
+          major: userData.major,
+          primaryDevice: userData.primaryDevice,
+          dailyLogs: userData.dailyLogs || [],
+        };
+        this.users.push(newUser);
+        importedUsers.push(newUser);
+      } catch (e) {
+        console.error(`Failed to import user ${userData.email}:`, e);
+      }
+    }
+    this.saveUsers();
+    return importedUsers;
+  }
+
+  addDailyLogToUser(email: string, dailyLog: DailyLog) {
+    const user = this.users.find(u => u.email === email);
+    if (!user) {
+      throw new Error(`User not found: ${email}`);
+    }
+    if (!user.dailyLogs) {
+      user.dailyLogs = [];
+    }
+    user.dailyLogs.push(dailyLog);
+    this.saveUsers();
+  }
+
+  getUserByEmail(email: string) {
+    return this.users.find(u => u.email === email);
+  }
+
+  getAllUsers() {
+    return this.users.map(u => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      age: u.age,
+      gender: u.gender,
+      yearOfStudy: u.yearOfStudy,
+      major: u.major,
+      primaryDevice: u.primaryDevice,
+      created_at: u.created_at,
+      dailyLogsCount: u.dailyLogs?.length || 0,
+    }));
   }
 }
 

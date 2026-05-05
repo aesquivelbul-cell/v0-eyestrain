@@ -60,6 +60,12 @@ export default function Home() {
             >
               Login
             </a>
+            <a
+              href="/admin/import-data"
+              className="px-8 py-3 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-semibold"
+            >
+              Import Data
+            </a>
           </div>
 
           {/* Features Grid */}
