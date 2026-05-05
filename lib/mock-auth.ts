@@ -63,10 +63,34 @@ export interface AuthSession {
 class MockAuthService {
   private users: MockUser[] = [];
   private session: AuthSession | null = null;
+  private adminEmail = 'admin@eyeguard.local';
+  private adminPassword = 'admin123456';
 
   constructor() {
     this.loadUsers();
     this.loadSession();
+    this.initializeAdminAccount();
+  }
+
+  private initializeAdminAccount() {
+    if (typeof window === 'undefined') return;
+    const adminExists = this.users.some(u => u.email === this.adminEmail);
+    if (!adminExists) {
+      this.users.push({
+        id: 'admin_user_001',
+        email: this.adminEmail,
+        name: 'System Administrator',
+        passwordHash: hashPassword(this.adminPassword),
+        created_at: new Date().toISOString(),
+        age: 0,
+        gender: 'N/A',
+        yearOfStudy: 'N/A',
+        major: 'System',
+        primaryDevice: 'Admin Panel',
+        dailyLogs: [],
+      });
+      this.saveUsers();
+    }
   }
 
   private loadUsers() {
@@ -262,6 +286,17 @@ class MockAuthService {
       created_at: u.created_at,
       dailyLogsCount: u.dailyLogs?.length || 0,
     }));
+  }
+
+  isAdmin(): boolean {
+    return this.session?.user.email === this.adminEmail;
+  }
+
+  getAdminCredentials() {
+    return {
+      email: this.adminEmail,
+      password: this.adminPassword,
+    };
   }
 }
 

@@ -4,10 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Upload, CheckCircle, AlertCircle, Users, Database } from 'lucide-react';
 import { Button } from '@/components/form-components';
+import { AdminGuard } from '@/components/admin-guard';
 import { parseCSV, convertSurveyToDailyLog, generateUserProfile } from '@/lib/csv-import';
 import { mockAuth } from '@/lib/mock-auth';
 
-export default function ImportDataPage() {
+function ImportDataPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [stats, setStats] = useState<{ usersImported: number; logsCreated: number } | null>(null);
@@ -314,5 +315,13 @@ export default function ImportDataPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ImportDataPage() {
+  return (
+    <AdminGuard>
+      <ImportDataPageContent />
+    </AdminGuard>
   );
 }
