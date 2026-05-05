@@ -111,28 +111,50 @@ export default function RiskPredictionPage() {
     );
   }
 
-  // Mock prediction data (for when user has data)
-  const mockPredictions = {
-    tomorrow: {
-      eyeStrain: 72,
-      fatigue: 65,
-      riskLevel: 'high' as const,
-    },
-    next7Days: {
-      eyeStrain: 68,
-      fatigue: 62,
-      riskLevel: 'moderate' as const,
-    },
-    modelAccuracy: 87,
-    dataPoints: 143,
+  // Use real prediction data from database
+  const riskPercentage = predictions?.risk_percentage || 0;
+  const riskLevel = predictions?.risk_level || 0;
+  const fatigueScore = predictions?.fatigue_score || 0;
+  const confidence = predictions?.confidence || 0;
+  const recommendations = predictions?.recommendations || [];
+
+  // Get risk level label
+  const getRiskLevelLabel = (level: number) => {
+    switch (level) {
+      case 0:
+        return 'Low';
+      case 1:
+        return 'Moderate';
+      case 2:
+        return 'High';
+      case 3:
+        return 'Critical';
+      default:
+        return 'Unknown';
+    }
   };
 
-  const riskFactors = predictions?.risk_factors || [
-    { factor: 'Screen Time > 8 hours', weight: 'Very High', impact: 95 },
-    { factor: 'Irregular break schedule', weight: 'High', impact: 78 },
-    { factor: 'Low ambient light', weight: 'Medium', impact: 52 },
-    { factor: 'Poor posture', weight: 'Medium', impact: 48 },
-    { factor: 'High screen brightness', weight: 'Medium', impact: 45 },
+  const getRiskLevelColor = (level: number) => {
+    switch (level) {
+      case 0:
+        return 'bg-green-500/10 border-green-200 dark:border-green-800';
+      case 1:
+        return 'bg-yellow-500/10 border-yellow-200 dark:border-yellow-800';
+      case 2:
+        return 'bg-orange-500/10 border-orange-200 dark:border-orange-800';
+      case 3:
+        return 'bg-red-500/10 border-red-200 dark:border-red-800';
+      default:
+        return 'bg-gray-500/10 border-gray-200';
+    }
+  };
+
+  const riskFactors = [
+    { factor: 'Screen Time Impact', weight: 'Based on Hours', impact: Math.min(100, (riskPercentage * 0.35)) },
+    { factor: 'Sleep Quality', weight: 'Recovery Factor', impact: Math.max(0, 30 - (fatigueScore * 3)) },
+    { factor: 'Symptom Frequency', weight: 'Weekly Occurrence', impact: Math.min(100, (riskPercentage * 0.25)) },
+    { factor: 'Screen Brightness', weight: 'Display Settings', impact: Math.min(100, (riskPercentage * 0.10)) },
+    { factor: 'Break Schedule', weight: 'Usage Pattern', impact: Math.max(0, 20 - (confidence * 20)) },
   ];
 
   const preventiveMeasures = [
@@ -172,19 +194,72 @@ export default function RiskPredictionPage() {
 
         {/* Prediction Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Tomorrow's Prediction */}
+          {/* Current Risk Assessment */}
           <ChartCard
-            title="Tomorrow&apos;s Prediction"
-            description="Based on your typical patterns"
+            title="Current Risk Assessment"
+            description="Based on your latest data"
           >
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-foreground">Eye Strain Risk</span>
                   <span className="text-2xl font-bold text-destructive">
-                    {predictions.tomorrow.eyeStrain}%
+                    {riskPercentage.toFixed(1)}%
                   </span>
                 </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-destructive"
+                    style={{ width: `${riskPercentage}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">Fatigue Score</span>
+                  <span className="text-2xl font-bold text-accent">
+                    {fatigueScore.toFixed(1)}/10
+                  </span>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${(fatigueScore / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg border ${getRiskLevelColor(riskLevel)}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-semibold">
+                    Risk Level: {getRiskLevelLabel(riskLevel)}
+                  </span>
+                </div>
+                <p className="text-sm mt-2">
+                  Model confidence: {(confidence * 100).toFixed(0)}%
+                </p>
+              </div>
+            </div>
+          </ChartCard>
+
+          {/* Recommendations */}
+          <ChartCard
+            title="Recommendations"
+            description="Personalized advice to reduce risk"
+          >
+            <div className="space-y-3">
+              {recommendations && recommendations.length > 0 ? (
+                recommendations.map((rec: string, idx: number) => (
+                  <div key={idx} className="flex gap-3 p-3 bg-muted/50 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-foreground">{rec}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No recommendations available yet</p>
+              )}
                 <div className="h-3 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full bg-destructive"

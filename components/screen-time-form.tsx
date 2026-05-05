@@ -20,9 +20,17 @@ interface FormData {
   headachesFrequency: string;
   blurryVisionFrequency: string;
   dryEyesFrequency: string;
-  // Section 4: Additional Information
+  // Section 4: Lifestyle & Habits
+  exerciseFrequency: string;
+  outdoorTime: string;
+  blueLight: string;
+  screenHeight: string;
+  // Section 5: Environment & Settings
   screenBrightness: string;
   sleepHours: string;
+  screenDistance: string;
+  roomLighting: string;
+  // Section 6: Additional Information
   additionalNotes: string;
 }
 
@@ -113,6 +121,48 @@ const FREQUENCY_OPTIONS = [
   'Always (every day)',
 ];
 
+const EXERCISE_OPTIONS = [
+  'None - Sedentary lifestyle',
+  'Minimal (1-2 times per week)',
+  'Moderate (3-4 times per week)',
+  'Regular (5+ times per week)',
+];
+
+const OUTDOOR_TIME_OPTIONS = [
+  'Less than 30 minutes daily',
+  '30 minutes to 1 hour daily',
+  '1-2 hours daily',
+  'More than 2 hours daily',
+];
+
+const BLUE_LIGHT_OPTIONS = [
+  'Never use blue light filters',
+  'Sometimes (evenings only)',
+  'Regularly (most of the time)',
+  'Always (all day)',
+];
+
+const SCREEN_HEIGHT_OPTIONS = [
+  'Below eye level',
+  'At eye level (optimal)',
+  'Above eye level',
+  'Varies frequently',
+];
+
+const SCREEN_DISTANCE_OPTIONS = [
+  'Less than 20cm (too close)',
+  '20-30cm (close)',
+  '30-50cm (optimal)',
+  'More than 50cm (too far)',
+];
+
+const ROOM_LIGHTING_OPTIONS = [
+  'Very dim or dark',
+  'Dim lighting',
+  'Adequate and balanced',
+  'Very bright (glare)',
+];
+
 export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
   const [currentSection, setCurrentSection] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,9 +180,14 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
     headachesFrequency: '',
     blurryVisionFrequency: '',
     dryEyesFrequency: '',
-    neckShoulderpainFrequency: '',
+    exerciseFrequency: '',
+    outdoorTime: '',
+    blueLight: '',
+    screenHeight: '',
     sleepHours: '',
     screenBrightness: '',
+    screenDistance: '',
+    roomLighting: '',
     additionalNotes: '',
   });
 
@@ -230,6 +285,34 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         }
         return true;
       case 4:
+        if (!formData.exerciseFrequency) {
+          setError('Please select your exercise frequency');
+          return false;
+        }
+        if (!formData.outdoorTime) {
+          setError('Please select your outdoor time');
+          return false;
+        }
+        if (!formData.blueLight) {
+          setError('Please select your blue light filter usage');
+          return false;
+        }
+        return true;
+      case 5:
+        if (!formData.screenHeight) {
+          setError('Please select your screen height position');
+          return false;
+        }
+        if (!formData.screenDistance) {
+          setError('Please select your screen distance');
+          return false;
+        }
+        if (!formData.roomLighting) {
+          setError('Please select your room lighting');
+          return false;
+        }
+        return true;
+      case 6:
         if (!formData.sleepHours) {
           setError('Please enter your sleep hours');
           return false;
@@ -326,9 +409,14 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         headachesFrequency: formData.headachesFrequency,
         blurryVisionFrequency: formData.blurryVisionFrequency,
         dryEyesFrequency: formData.dryEyesFrequency,
+        exerciseFrequency: formData.exerciseFrequency,
+        outdoorTime: formData.outdoorTime,
+        blueLight: formData.blueLight,
+        screenHeight: formData.screenHeight,
+        screenDistance: formData.screenDistance,
+        roomLighting: formData.roomLighting,
       };
       
-      console.log('[v0] Submitting form data:', submitData);
       await onSubmit(submitData);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit form';
@@ -579,10 +667,120 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         </FormSection>
       )}
 
-      {/* Section 4: Additional Information */}
+      {/* Section 4: Lifestyle & Habits */}
       {currentSection === 4 && (
         <FormSection>
-          <SectionHeader number={4} title="ADDITIONAL INFORMATION" />
+          <SectionHeader number={4} title="LIFESTYLE & HABITS" />
+
+          <FormField label="How often do you exercise or engage in physical activity? *">
+            <select
+              value={formData.exerciseFrequency}
+              onChange={(e) => handleInputChange('exerciseFrequency', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select frequency</option>
+              {EXERCISE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="How much time do you spend outdoors daily? *">
+            <select
+              value={formData.outdoorTime}
+              onChange={(e) => handleInputChange('outdoorTime', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select duration</option>
+              {OUTDOOR_TIME_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Do you use blue light filters or night mode on your devices? *">
+            <select
+              value={formData.blueLight}
+              onChange={(e) => handleInputChange('blueLight', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select option</option>
+              {BLUE_LIGHT_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </FormSection>
+      )}
+
+      {/* Section 5: Environment & Settings */}
+      {currentSection === 5 && (
+        <FormSection>
+          <SectionHeader number={5} title="ENVIRONMENT & SETTINGS" />
+
+          <FormField label="How is your screen positioned relative to your eyes? *">
+            <select
+              value={formData.screenHeight}
+              onChange={(e) => handleInputChange('screenHeight', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select position</option>
+              {SCREEN_HEIGHT_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="What is your typical screen viewing distance? *">
+            <select
+              value={formData.screenDistance}
+              onChange={(e) => handleInputChange('screenDistance', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select distance</option>
+              {SCREEN_DISTANCE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="What is the lighting condition of your room? *">
+            <select
+              value={formData.roomLighting}
+              onChange={(e) => handleInputChange('roomLighting', e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
+              required
+            >
+              <option value="">Select lighting</option>
+              {ROOM_LIGHTING_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </FormSection>
+      )}
+
+      {/* Section 6: Additional Information */}
+      {currentSection === 6 && (
+        <FormSection>
+          <SectionHeader number={6} title="ADDITIONAL INFORMATION" />
 
           <FormField label="Average Sleep Hours per Night *">
             <input
@@ -654,7 +852,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
             Previous
           </Button>
         )}
-        {currentSection < 4 ? (
+        {currentSection < 6 ? (
           <Button
             type="button"
             variant="primary"
@@ -679,7 +877,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
 
       {/* Progress Indicator */}
       <div className="flex gap-2 justify-center pt-4">
-        {[1, 2, 3, 4].map((section) => (
+        {[1, 2, 3, 4, 5, 6].map((section) => (
           <button
             key={section}
             type="button"
