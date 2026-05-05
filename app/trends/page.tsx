@@ -1,17 +1,101 @@
 'use client';
 
-import { Calendar, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, TrendingUp, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, MetricCard } from '@/components/dashboard-card';
-import { SelectField } from '@/components/form-components';
-import { useState } from 'react';
+import { SelectField, Button } from '@/components/form-components';
 
 export default function TrendsPage() {
+  const router = useRouter();
+  const supabase = createClient();
   const [metric, setMetric] = useState('eyeStrain');
   const [timeRange, setTimeRange] = useState('30days');
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasData, setHasData] = useState(false);
 
-  // Mock trend data
+  useEffect(() => {
+    const checkData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        // Check if user has any daily logs
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        setHasData((logs && logs.length > 0) || false);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkData();
+  }, [router, supabase]);
+
+  if (isLoading) {
+    return (
+      <AuthGuard>
+        <MainLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center space-y-4">
+              <div className="inline-block p-4 bg-muted rounded-full">
+                <TrendingUp className="w-8 h-8 text-primary animate-pulse" />
+              </div>
+              <p className="text-lg text-muted-foreground">Loading trends...</p>
+            </div>
+          </div>
+        </MainLayout>
+      </AuthGuard>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <AuthGuard>
+        <MainLayout>
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Trends Analysis</h1>
+              <p className="text-muted-foreground mt-2">Track long-term patterns in your eye health</p>
+            </div>
+
+            <div className="flex items-center justify-center min-h-96 rounded-lg border-2 border-dashed border-border bg-muted/30">
+              <div className="text-center space-y-4 p-8">
+                <div className="inline-block p-4 bg-primary/10 rounded-full">
+                  <AlertCircle className="w-12 h-12 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground">No Trend Data Yet</h2>
+                <p className="text-muted-foreground max-w-md">
+                  Trends appear after you log multiple days of data. Start logging your daily screen time to see patterns emerge over time.
+                </p>
+                <Button 
+                  variant="primary" 
+                  size="lg"
+                  onClick={() => router.push('/daily-log')}
+                >
+                  Start Logging
+                </Button>
+              </div>
+            </div>
+          </div>
+        </MainLayout>
+      </AuthGuard>
+    );
+  }
+
+  // Mock trend data (for when user has data)
   const trendData = {
     eyeStrain: [45, 48, 52, 58, 62, 65, 68, 70, 69, 71, 72, 75, 78, 80, 82, 84, 83, 82, 81, 79, 77, 75, 73, 72, 70, 69, 68, 67, 66, 65],
     fatigue: [35, 38, 42, 48, 52, 58, 62, 65, 64, 68, 70, 72, 74, 75, 76, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63],

@@ -28,15 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
 
   // Check if user is already logged in on mount
   useEffect(() => {
+    const supabase = createClient();
+    let mounted = true;
+
     const checkAuth = async () => {
       try {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         
-        if (supabaseUser) {
+        if (mounted && supabaseUser) {
           setUser({
             id: supabaseUser.id,
             email: supabaseUser.email || '',
@@ -46,7 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Auth check failed:', err);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -55,22 +59,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            created_at: session.user.created_at || new Date().toISOString(),
-          });
-        } else {
-          setUser(null);
+        if (mounted) {
+          if (session?.user) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              created_at: session.user.created_at || new Date().toISOString(),
+            });
+          } else {
+            setUser(null);
+          }
         }
       }
     );
 
     return () => {
+      mounted = false;
       subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);

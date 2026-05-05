@@ -1,14 +1,118 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, TrendingUp, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, StatCard, MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
 
 export default function RiskPredictionPage() {
-  // Mock prediction data
-  const predictions = {
+  const router = useRouter();
+  const supabase = createClient();
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasData, setHasData] = useState(false);
+  const [predictions, setPredictions] = useState<any>(null);
+
+  useEffect(() => {
+    const checkData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        // Check if user has any daily logs
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        setHasData((logs && logs.length > 0) || false);
+
+        // Load latest prediction if data exists
+        if (logs && logs.length > 0) {
+          const { data: prediction } = await supabase
+            .from('predictions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (prediction) {
+            setPredictions(prediction);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkData();
+  }, [router, supabase]);
+
+  if (isLoading) {
+    return (
+      <AuthGuard>
+        <MainLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center space-y-4">
+              <div className="inline-block p-4 bg-muted rounded-full">
+                <Zap className="w-8 h-8 text-primary animate-pulse" />
+              </div>
+              <p className="text-lg text-muted-foreground">Loading predictions...</p>
+            </div>
+          </div>
+        </MainLayout>
+      </AuthGuard>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <AuthGuard>
+        <MainLayout>
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-4xl font-bold text-foreground">Risk Prediction</h1>
+              <p className="text-muted-foreground mt-2">
+                AI-powered predictions based on your usage patterns
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center min-h-96 rounded-lg border-2 border-dashed border-border bg-muted/30">
+              <div className="text-center space-y-4 p-8">
+                <div className="inline-block p-4 bg-primary/10 rounded-full">
+                  <AlertCircle className="w-12 h-12 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground">No Data Yet</h2>
+                <p className="text-muted-foreground max-w-md">
+                  Start logging your daily screen time and symptoms to get AI-powered risk predictions. We need at least one entry to analyze your patterns.
+                </p>
+                <Button 
+                  variant="primary" 
+                  size="lg"
+                  onClick={() => router.push('/daily-log')}
+                >
+                  Log Your First Entry
+                </Button>
+              </div>
+            </div>
+          </div>
+        </MainLayout>
+      </AuthGuard>
+    );
+  }
+
+  // Mock prediction data (for when user has data)
+  const mockPredictions = {
     tomorrow: {
       eyeStrain: 72,
       fatigue: 65,
@@ -23,7 +127,7 @@ export default function RiskPredictionPage() {
     dataPoints: 143,
   };
 
-  const riskFactors = [
+  const riskFactors = predictions?.risk_factors || [
     { factor: 'Screen Time > 8 hours', weight: 'Very High', impact: 95 },
     { factor: 'Irregular break schedule', weight: 'High', impact: 78 },
     { factor: 'Low ambient light', weight: 'Medium', impact: 52 },
