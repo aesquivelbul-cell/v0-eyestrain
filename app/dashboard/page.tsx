@@ -288,48 +288,51 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Eye Strain Risk */}
-          <div className={`rounded-xl border border-border p-6 ${prediction ? getRiskBgColor(prediction.risk_level) : 'bg-muted'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Eye Strain Risk</p>
-                <p className={`text-3xl font-bold mt-2 ${prediction ? getRiskColor(prediction.risk_level) : 'text-muted-foreground'}`}>
-                  {prediction ? `${prediction.risk_percentage.toFixed(1)}%` : 'N/A'}
-                </p>
+        {/* Key Metrics - Only show when there's prediction data */}
+        {prediction && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Eye Strain Risk */}
+            <div className={`rounded-xl border border-border p-6 ${getRiskBgColor(prediction.risk_level)}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Eye Strain Risk</p>
+                  <p className={`text-3xl font-bold mt-2 ${getRiskColor(prediction.risk_level)}`}>
+                    {`${prediction.risk_percentage.toFixed(1)}%`}
+                  </p>
+                </div>
+                <Eye className={`w-12 h-12 ${getRiskColor(prediction.risk_level)}`} />
               </div>
-              <Eye className={`w-12 h-12 ${prediction ? getRiskColor(prediction.risk_level) : 'text-muted-foreground'}`} />
             </div>
+
+            {/* Fatigue Score */}
+            <MetricCard
+              title="Fatigue Score"
+              value={prediction.fatigue_score.toFixed(1)}
+              unit="/10"
+              icon={<TrendingUp className="w-6 h-6 text-primary" />}
+            />
+
+            {/* Prediction Confidence */}
+            <MetricCard
+              title="Confidence"
+              value={(prediction.confidence * 100).toFixed(0)}
+              unit="%"
+              icon={<Eye className="w-6 h-6 text-secondary" />}
+            />
+
+            {/* High Risk Days (7d) */}
+            <MetricCard
+              title="High Risk Days"
+              value={insights.days_high_risk}
+              unit={`/${insights.period_days}`}
+              icon={<AlertCircle className="w-6 h-6 text-destructive" />}
+            />
           </div>
+        )}
 
-          {/* Fatigue Score */}
-          <MetricCard
-            title="Fatigue Score"
-            value={prediction ? prediction.fatigue_score.toFixed(1) : 'N/A'}
-            unit="/10"
-            icon={<TrendingUp className="w-6 h-6 text-primary" />}
-          />
-
-          {/* Prediction Confidence */}
-          <MetricCard
-            title="Confidence"
-            value={prediction ? (prediction.confidence * 100).toFixed(0) : 'N/A'}
-            unit="%"
-            icon={<Eye className="w-6 h-6 text-secondary" />}
-          />
-
-          {/* High Risk Days (7d) */}
-          <MetricCard
-            title="High Risk Days"
-            value={insights.days_high_risk}
-            unit={`/${insights.period_days}`}
-            icon={<AlertCircle className="w-6 h-6 text-destructive" />}
-          />
-        </div>
-
-        {/* Detailed Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Detailed Analytics - Only show when there's prediction data */}
+        {prediction && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 7-Day Summary */}
           <div className="border border-border rounded-xl p-6 space-y-4">
             <h3 className="text-lg font-semibold text-foreground">7-Day Summary</h3>
@@ -399,6 +402,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Recommendations */}
         {prediction && prediction.recommendations && prediction.recommendations.length > 0 && (
