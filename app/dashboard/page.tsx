@@ -1,14 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import { Eye, AlertCircle, TrendingUp, Clock, RefreshCw, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
-import { DashboardEmptyState } from '@/components/dashboard-empty-state';
-import { ScreenTimeForm } from '@/components/screen-time-form';
-import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -18,7 +16,6 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(false);
   const [prediction, setPrediction] = useState<any>(null);
   const [hasData, setHasData] = useState(false);
 
@@ -31,7 +28,25 @@ export default function DashboardPage() {
           return;
         }
 
-        setUser(authUser);
+        // Load user profile to get full name
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .single();
+
+        // Combine auth user with profile data
+        const userData = {
+          ...authUser,
+          profile: profile || null,
+          displayName: profile?.first_name && profile?.last_name 
+            ? `${profile.first_name} ${profile.last_name}`
+            : profile?.first_name 
+            ? profile.first_name
+            : authUser.email?.split('@')[0] || 'User'
+        };
+
+        setUser(userData);
 
         const { data: logs } = await supabase
           .from('daily_logs')
@@ -108,27 +123,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: any) => {
-    try {
-      setError('');
-      const response = await fetch('/api/predict-supabase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error('Failed to generate prediction');
-      const predictionResult = await response.json();
-      setPrediction(predictionResult);
-      setHasData(true);
-      setShowForm(false);
-      handleRefreshPredictions();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to process data';
-      setError(message);
-    }
-  };
-
   if (isLoading) {
     return (
       <MainLayout>
@@ -145,53 +139,19 @@ export default function DashboardPage() {
   }
 
   if (!hasData && !showForm) {
-    return (
-      <MainLayout>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-                Welcome, {user?.email?.split('@')[0] || 'User'}
-              </h1>
-              <p className="text-muted-foreground mt-2">Get started with your eye health analysis</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={handleLogout}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
-          <DashboardEmptyState onStartData={() => setShowForm(true)} />
-        </div>
-      </MainLayout>
-    );
-  }
+    // Redirect new users to daily log form
+    React.useEffect(() => {
+      router.push('/daily-log');
+    }, [router]);
 
-  if (showForm) {
     return (
       <MainLayout>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Log Your Screen Time Data</h1>
-              <p className="text-muted-foreground mt-2">Provide details about your daily screen usage and eye health</p>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <div className="inline-block p-4 bg-muted rounded-full">
+              <Eye className="w-8 h-8 text-primary animate-pulse" />
             </div>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={handleLogout}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
-          <div className="max-w-2xl">
-            <ScreenTimeForm onSubmit={handleFormSubmit} />
+            <p className="text-lg text-muted-foreground">Redirecting to daily log...</p>
           </div>
         </div>
       </MainLayout>
@@ -204,14 +164,16 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Your Eye Health Dashboard</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+              Welcome back, {user?.displayName || 'User'}!
+            </h1>
             <p className="text-muted-foreground mt-2">Real-time eye health analysis powered by AI</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               variant="primary"
               size="lg"
-              onClick={() => setShowForm(true)}
+              onClick={() => router.push('/daily-log')}
               className="flex items-center justify-center gap-2"
             >
               <Clock className="w-4 h-4" />

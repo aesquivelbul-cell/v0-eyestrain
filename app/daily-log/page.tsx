@@ -2,18 +2,22 @@
 
 import { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ScreenTimeForm } from '@/components/screen-time-form';
 
 export default function DailyLogPage() {
+  const router = useRouter();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFormSubmit = async (formData: any) => {
     try {
       setError('');
       setSuccess(false);
+      setIsSubmitting(true);
 
       const response = await fetch('/api/predict-supabase', {
         method: 'POST',
@@ -27,8 +31,13 @@ export default function DailyLogPage() {
       }
 
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 5000);
+      // Reset form and show success message for 3 seconds
+      setTimeout(() => {
+        setSuccess(false);
+        setIsSubmitting(false);
+      }, 3000);
     } catch (err) {
+      setIsSubmitting(false);
       const message = err instanceof Error ? err.message : 'Failed to save daily log';
       setError(message);
     }

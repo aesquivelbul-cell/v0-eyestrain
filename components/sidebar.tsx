@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -14,6 +14,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface NavItem {
   label: string;
@@ -68,6 +69,50 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .single();
+
+          const userData = {
+            email: authUser.email,
+            displayName: profile?.first_name && profile?.last_name 
+              ? `${profile.first_name} ${profile.last_name}`
+              : profile?.first_name 
+              ? profile.first_name
+              : authUser.email?.split('@')[0] || 'User'
+          };
+          setUser(userData);
+        }
+      } catch (err) {
+        console.error('Error loading user profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   const mainItems = navItems.filter(item => item.category === 'main');
   const configItems = navItems.filter(item => item.category === 'config');
@@ -152,14 +197,18 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-sidebar-border p-3">
+      {/* User Info */}
+      <div className="border-t border-sidebar-border p-4 space-y-4">
+        {!loading && user && (
+          <div>
+            <p className="text-xs text-sidebar-foreground/60 uppercase font-semibold mb-1">User</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{user.displayName}</p>
+            <p className="text-xs text-sidebar-foreground/50 truncate">{user.email}</p>
+          </div>
+        )}
         <button
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-          onClick={() => {
-            // TODO: Implement logout
-            console.log('Logout clicked');
-          }}
+          onClick={handleLogout}
         >
           <LogOut className="w-5 h-5" />
           <span className="text-sm font-medium">Logout</span>
