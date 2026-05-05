@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [prediction, setPrediction] = useState<any>(null);
   const [hasData, setHasData] = useState(false);
+  const [allLogs, setAllLogs] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -62,6 +64,9 @@ export default function DashboardPage() {
 
         if (logs && logs.length > 0) {
           setHasData(true);
+          setAllLogs(logs);
+
+          // Fetch latest prediction
           const { data: predictions } = await supabase
             .from('predictions')
             .select('*')
@@ -73,6 +78,37 @@ export default function DashboardPage() {
           if (predictions) {
             setPrediction(predictions);
           }
+
+          // Calculate analytics from all logs
+          const avgScreenTime = logs.length > 0 
+            ? (logs.reduce((sum, log) => sum + (log.screen_time || 0), 0) / logs.length).toFixed(1)
+            : 0;
+          
+          const avgSleepHours = logs.length > 0
+            ? (logs.reduce((sum, log) => sum + (log.sleep_hours || 0), 0) / logs.length).toFixed(1)
+            : 0;
+          
+          const avgBrightness = logs.length > 0
+            ? (logs.reduce((sum, log) => sum + (log.brightness || 0), 0) / logs.length).toFixed(0)
+            : 0;
+
+          // Count symptom frequencies
+          const eyeStrainCount = logs.filter(log => log.eye_strain === 1).length;
+          const headachesCount = logs.filter(log => log.headaches === 1).length;
+          const dryEyesCount = logs.filter(log => log.dry_eyes === 1).length;
+          const blurryVisionCount = logs.filter(log => log.blurry_vision === 1).length;
+
+          setAnalytics({
+            averageScreenTime: avgScreenTime,
+            averageSleepHours: avgSleepHours,
+            averageBrightness: avgBrightness,
+            totalLogsRecorded: logs.length,
+            eyeStrainFrequency: eyeStrainCount,
+            headachesFrequency: headachesCount,
+            dryEyesFrequency: dryEyesCount,
+            blurryVisionFrequency: blurryVisionCount,
+            logs: logs,
+          });
         } else {
           setHasData(false);
         }
@@ -107,7 +143,7 @@ export default function DashboardPage() {
     setIsRefreshing(true);
     setError('');
     try {
-      if (user) {
+      if (user && supabase) {
         const { data: logs } = await supabase
           .from('daily_logs')
           .select('*')
@@ -116,6 +152,8 @@ export default function DashboardPage() {
 
         if (logs && logs.length > 0) {
           setHasData(true);
+          setAllLogs(logs);
+
           const { data: predictions } = await supabase
             .from('predictions')
             .select('*')
@@ -127,6 +165,36 @@ export default function DashboardPage() {
           if (predictions) {
             setPrediction(predictions);
           }
+
+          // Recalculate analytics
+          const avgScreenTime = logs.length > 0 
+            ? (logs.reduce((sum, log) => sum + (log.screen_time || 0), 0) / logs.length).toFixed(1)
+            : 0;
+          
+          const avgSleepHours = logs.length > 0
+            ? (logs.reduce((sum, log) => sum + (log.sleep_hours || 0), 0) / logs.length).toFixed(1)
+            : 0;
+          
+          const avgBrightness = logs.length > 0
+            ? (logs.reduce((sum, log) => sum + (log.brightness || 0), 0) / logs.length).toFixed(0)
+            : 0;
+
+          const eyeStrainCount = logs.filter(log => log.eye_strain === 1).length;
+          const headachesCount = logs.filter(log => log.headaches === 1).length;
+          const dryEyesCount = logs.filter(log => log.dry_eyes === 1).length;
+          const blurryVisionCount = logs.filter(log => log.blurry_vision === 1).length;
+
+          setAnalytics({
+            averageScreenTime: avgScreenTime,
+            averageSleepHours: avgSleepHours,
+            averageBrightness: avgBrightness,
+            totalLogsRecorded: logs.length,
+            eyeStrainFrequency: eyeStrainCount,
+            headachesFrequency: headachesCount,
+            dryEyesFrequency: dryEyesCount,
+            blurryVisionFrequency: blurryVisionCount,
+            logs: logs,
+          });
         }
       }
     } catch (err) {
@@ -209,16 +277,36 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Risk Prediction Section */}
         {prediction && (
-          <>
+          <div className="space-y-6">
+            {/* Risk Level and Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="rounded-xl border border-border p-6 bg-green-500/10">
+              <div className={`rounded-xl border border-border p-6 ${
+                prediction.risk_level === 0 ? 'bg-green-500/10' :
+                prediction.risk_level === 1 ? 'bg-yellow-500/10' :
+                prediction.risk_level === 2 ? 'bg-orange-500/10' :
+                'bg-red-500/10'
+              }`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Eye Strain Risk</p>
-                    <p className="text-3xl font-bold mt-2 text-green-600">{prediction.risk_percentage?.toFixed(1) || 'N/A'}%</p>
+                    <p className={`text-3xl font-bold mt-2 ${
+                      prediction.risk_level === 0 ? 'text-green-600' :
+                      prediction.risk_level === 1 ? 'text-yellow-600' :
+                      prediction.risk_level === 2 ? 'text-orange-600' :
+                      'text-red-600'
+                    }`}>{prediction.risk_percentage?.toFixed(1) || 'N/A'}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {prediction.risk_level === 0 ? 'Low' : prediction.risk_level === 1 ? 'Moderate' : prediction.risk_level === 2 ? 'High' : 'Critical'}
+                    </p>
                   </div>
-                  <Eye className="w-12 h-12 text-green-600" />
+                  <Eye className={`w-12 h-12 ${
+                    prediction.risk_level === 0 ? 'text-green-600' :
+                    prediction.risk_level === 1 ? 'text-yellow-600' :
+                    prediction.risk_level === 2 ? 'text-orange-600' :
+                    'text-red-600'
+                  }`} />
                 </div>
               </div>
 
@@ -237,15 +325,66 @@ export default function DashboardPage() {
               />
 
               <MetricCard
-                title="Recommendation"
-                value="Review"
-                description="Check detailed insights"
-                icon={<AlertCircle className="w-6 h-6 text-destructive" />}
+                title="Data Points"
+                value={analytics?.totalLogsRecorded || '0'}
+                description="Logs recorded"
+                icon={<AlertCircle className="w-6 h-6 text-blue-500" />}
               />
             </div>
 
+            {/* Analytics Section */}
+            {analytics && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">📊 Analytics</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Avg Screen Time</span>
+                      <span className="font-semibold text-foreground">{analytics.averageScreenTime} hrs</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Avg Sleep</span>
+                      <span className="font-semibold text-foreground">{analytics.averageSleepHours} hrs</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Avg Brightness</span>
+                      <span className="font-semibold text-foreground">{analytics.averageBrightness}%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total Logs</span>
+                      <span className="font-semibold text-foreground">{analytics.totalLogsRecorded}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Symptoms Trends */}
+                <div className="border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">📈 Symptoms Trend</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Eye Strain</span>
+                      <span className="font-semibold text-foreground">{analytics.eyeStrainFrequency} times</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Headaches</span>
+                      <span className="font-semibold text-foreground">{analytics.headachesFrequency} times</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-border">
+                      <span className="text-sm text-muted-foreground">Dry Eyes</span>
+                      <span className="font-semibold text-foreground">{analytics.dryEyesFrequency} times</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Blurry Vision</span>
+                      <span className="font-semibold text-foreground">{analytics.blurryVisionFrequency} times</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recommendations */}
             <div className="border border-border rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Recommendations</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">💡 Personalized Recommendations</h3>
               <ul className="space-y-3">
                 {prediction.recommendations?.map((rec: string, idx: number) => (
                   <li key={idx} className="flex items-start gap-3">
@@ -255,7 +394,7 @@ export default function DashboardPage() {
                 ))}
               </ul>
             </div>
-          </>
+          </div>
         )}
       </div>
     </MainLayout>

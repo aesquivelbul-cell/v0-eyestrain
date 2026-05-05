@@ -31,6 +31,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Save or update user profile
+    try {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          id: user.id,
+          first_name: formData.firstName || '',
+          last_name: formData.lastName || '',
+          age: formData.age,
+          gender: formData.gender,
+          year_level: formData.yearLevel,
+          field_of_study: formData.fieldOfStudy,
+        }, { onConflict: 'id' });
+
+      if (profileError) {
+        console.warn('Warning: Could not save user profile:', profileError);
+        // Don't fail the entire request if profile save fails
+      }
+    } catch (profileErr) {
+      console.warn('Warning: Profile save error:', profileErr);
+    }
+
     // Calculate prediction using improved ML logic
     const screenTime = parseFloat(formData.screenTime) || 0;
     const sleepHours = parseFloat(formData.sleepHours) || 7;

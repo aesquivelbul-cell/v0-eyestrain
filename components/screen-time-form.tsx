@@ -306,7 +306,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         frequencyMap[formData.dryEyesFrequency as keyof typeof frequencyMap] > 0 ? 'dryEyes' : '',
       ].filter(Boolean);
 
-      await onSubmit({
+      const submitData = {
         screenTime: totalScreenTime,
         breaksTaken: 0, // Can be added if form includes this
         symptoms,
@@ -326,7 +326,10 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
         headachesFrequency: formData.headachesFrequency,
         blurryVisionFrequency: formData.blurryVisionFrequency,
         dryEyesFrequency: formData.dryEyesFrequency,
-      });
+      };
+      
+      console.log('[v0] Submitting form data:', submitData);
+      await onSubmit(submitData);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit form';
       setError(message);

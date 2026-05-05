@@ -31,11 +31,10 @@ export default function DailyLogPage() {
       }
 
       setSuccess(true);
-      // Reset form and show success message for 3 seconds
+      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        setSuccess(false);
-        setIsSubmitting(false);
-      }, 3000);
+        router.push('/dashboard');
+      }, 2000);
     } catch (err) {
       setIsSubmitting(false);
       const message = err instanceof Error ? err.message : 'Failed to save daily log';
