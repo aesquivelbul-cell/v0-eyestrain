@@ -1,16 +1,22 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, BarChart3, Zap, Shield } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { mockAuth } from '@/lib/mock-auth';
 
 export default function Home() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Note: redirect to dashboard can be handled here if needed
-    // For now, show landing page
-  }, []);
+    // Check if user is admin
+    if (isAuthenticated) {
+      setIsAdmin(mockAuth.isAdmin());
+    }
+  }, [isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted flex flex-col">
@@ -60,12 +66,14 @@ export default function Home() {
             >
               Login
             </a>
-            <a
-              href="/admin/import-data"
-              className="px-8 py-3 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-semibold"
-            >
-              Import Data
-            </a>
+            {isAdmin && (
+              <a
+                href="/admin/import-data"
+                className="px-8 py-3 rounded-lg border border-secondary text-secondary hover:bg-secondary/10 transition-colors font-semibold"
+              >
+                Import Data
+              </a>
+            )}
           </div>
 
           {/* Features Grid */}
