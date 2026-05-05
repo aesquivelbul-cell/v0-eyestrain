@@ -15,6 +15,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
+  isFirstTimeUser: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -35,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUser = mockAuth.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
+          // Check if user has any daily logs
+          const userData = mockAuth.getUserByEmail(currentUser.email);
+          const hasLogs = userData?.dailyLogs && userData.dailyLogs.length > 0;
+          setIsFirstTimeUser(!hasLogs);
         }
         setIsLoading(false);
       } catch (err) {
@@ -69,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = mockAuth.register(email, password, name);
       setUser(session.user);
+      // New users are first-time users
+      setIsFirstTimeUser(true);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Signup failed';
       setError(errorMessage);
@@ -82,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     mockAuth.logout();
     setUser(null);
+    setIsFirstTimeUser(false);
   };
 
   const clearError = () => setError(null);
@@ -93,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: mockAuth.isAuthenticated(),
         error,
+        isFirstTimeUser,
         login,
         signup,
         logout,

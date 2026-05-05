@@ -151,6 +151,7 @@ class MockAuthService {
       name,
       passwordHash: hashPassword(password),
       created_at: new Date().toISOString(),
+      dailyLogs: [],
     };
 
     this.users.push(newUser);
