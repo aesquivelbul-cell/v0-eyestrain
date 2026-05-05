@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       try {
         const currentUser = mockAuth.getCurrentUser();
         if (currentUser) {
@@ -42,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const hasLogs = userData?.dailyLogs && userData.dailyLogs.length > 0;
           setIsFirstTimeUser(!hasLogs);
         }
+        // Add small delay to ensure proper state updates
+        await new Promise(resolve => setTimeout(resolve, 100));
         setIsLoading(false);
       } catch (err) {
         console.error('Auth check failed:', err);
