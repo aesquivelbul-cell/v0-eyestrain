@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? createClient() : null;
   
   const [formData, setFormData] = useState({
     email: '',
@@ -31,6 +31,10 @@ export default function LoginPage() {
     setError('');
 
     try {
+      if (!supabase) {
+        throw new Error('Supabase is not configured. Please check your environment variables.');
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,

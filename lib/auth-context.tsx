@@ -31,11 +31,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    const supabase = createClient();
     let mounted = true;
 
     const checkAuth = async () => {
       try {
+        // Check if environment variables are available
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          console.warn('Supabase environment variables not found');
+          if (mounted) {
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const supabase = createClient();
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         
         if (mounted && supabaseUser) {
@@ -57,25 +66,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (mounted) {
-          if (session?.user) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              created_at: session.user.created_at || new Date().toISOString(),
-            });
-          } else {
-            setUser(null);
-          }
+    const setupSubscription = async () => {
+      try {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          return;
         }
+        
+        const supabase = createClient();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (mounted) {
+              if (session?.user) {
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  created_at: session.user.created_at || new Date().toISOString(),
+                });
+              } else {
+                setUser(null);
+              }
+            }
+          }
+        );
+
+        return () => {
+          subscription?.unsubscribe();
+        };
+      } catch (err) {
+        console.error('Auth subscription error:', err);
       }
-    );
+    };
+
+    setupSubscription();
 
     return () => {
       mounted = false;
-      subscription?.unsubscribe();
     };
   }, []);
 

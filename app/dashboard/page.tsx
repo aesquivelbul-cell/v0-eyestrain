@@ -10,7 +10,7 @@ import { Button } from '@/components/form-components';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? createClient() : null;
   
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +22,12 @@ export default function DashboardPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        if (!supabase) {
+          console.error('Supabase is not configured');
+          router.push('/login');
+          return;
+        }
+
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) {
           router.push('/login');
@@ -138,7 +144,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!hasData && !showForm) {
+  if (!hasData) {
     // Redirect new users to daily log form
     React.useEffect(() => {
       router.push('/daily-log');
