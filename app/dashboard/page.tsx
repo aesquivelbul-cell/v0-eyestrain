@@ -47,14 +47,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: {
-    screenTime: number;
-    breaksTaken: number;
-    symptoms: string[];
-    brightness: number;
-    sleepHours: number;
-    notes: string;
-  }) => {
+  const handleFormSubmit = async (formData: any) => {
     try {
       setError('');
       
@@ -79,7 +72,7 @@ export default function DashboardPage() {
           id: `log_${Date.now()}`,
           date: new Date().toISOString().split('T')[0],
           screenTime: formData.screenTime,
-          breaksTaken: formData.breaksTaken,
+          breaksTaken: formData.breaksTaken || 0,
           eyeStrain: formData.symptoms.includes('eyeStrain') ? 1 : 0,
           headaches: formData.symptoms.includes('headaches') ? 1 : 0,
           blurryVision: formData.symptoms.includes('blurryVision') ? 1 : 0,
@@ -88,6 +81,19 @@ export default function DashboardPage() {
           notes: formData.notes,
           sleepHours: formData.sleepHours,
           riskLevel: ['Low', 'Moderate', 'High', 'Critical'][predictionResult.risk_level],
+          // Store additional survey data
+          email: formData.email,
+          age: formData.age,
+          gender: formData.gender,
+          yearLevel: formData.yearLevel,
+          fieldOfStudy: formData.fieldOfStudy,
+          academicScreenTime: formData.academicScreenTime,
+          nonAcademicScreenTime: formData.nonAcademicScreenTime,
+          primaryDevice: formData.primaryDevice,
+          eyeStrainFrequency: formData.eyeStrainFrequency,
+          headachesFrequency: formData.headachesFrequency,
+          blurryVisionFrequency: formData.blurryVisionFrequency,
+          dryEyesFrequency: formData.dryEyesFrequency,
         };
 
         mockAuth.addDailyLogToUser(user.email, dailyLog);
