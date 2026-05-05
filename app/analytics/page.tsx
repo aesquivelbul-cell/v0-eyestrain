@@ -5,30 +5,96 @@ import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard, StatCard, MetricCard } from '@/components/dashboard-card';
 import { Button, SelectField } from '@/components/form-components';
-import { useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { mockAuth } from '@/lib/mock-auth';
+import { useEffect, useState } from 'react';
 
 export default function AnalyticsPage() {
+  const { user } = useAuth();
   const [timeRange, setTimeRange] = useState('7days');
+  const [userLogs, setUserLogs] = useState<any[]>([]);
+  const [hasData, setHasData] = useState(false);
 
-  // Mock data for different time ranges
-  const mockData = {
-    averageScreenTime: 7.3,
-    totalHours: 51.1,
-    averageBreaks: 12,
-    eyeStrainTrend: [45, 52, 58, 65, 70, 68, 65],
-    fatigueData: [40, 45, 50, 55, 60, 62, 60],
-    symptomFrequency: {
-      eyeStrain: 85,
-      headaches: 62,
-      dryEyes: 78,
-      blurryVision: 45,
-    },
+  useEffect(() => {
+    if (user) {
+      const userData = mockAuth.getUserByEmail(user.email);
+      const logs = userData?.dailyLogs || [];
+      setUserLogs(logs);
+      setHasData(logs.length > 0);
+    }
+  }, [user]);
+
+  // Calculate real data from user logs
+  const calculateAnalytics = () => {
+    if (userLogs.length === 0) {
+      return null;
+    }
+
+    const totalLogs = userLogs.length;
+    const avgScreenTime = userLogs.reduce((sum: number, log: any) => sum + (log.screenTime || 0), 0) / totalLogs;
+    const totalHours = userLogs.reduce((sum: number, log: any) => sum + (log.screenTime || 0), 0);
+    const avgBreaks = userLogs.reduce((sum: number, log: any) => sum + (log.breaksTaken || 0), 0) / totalLogs;
+
+    // Calculate symptom frequencies
+    const eyeStrainCount = userLogs.filter((log: any) => log.eyeStrain > 0).length;
+    const headachesCount = userLogs.filter((log: any) => log.headaches > 0).length;
+    const dryEyesCount = userLogs.filter((log: any) => log.dryEyes > 0).length;
+    const blurryVisionCount = userLogs.filter((log: any) => log.blurryVision > 0).length;
+
+    const symptomFrequency = {
+      eyeStrain: Math.round((eyeStrainCount / totalLogs) * 100),
+      headaches: Math.round((headachesCount / totalLogs) * 100),
+      dryEyes: Math.round((dryEyesCount / totalLogs) * 100),
+      blurryVision: Math.round((blurryVisionCount / totalLogs) * 100),
+    };
+
+    // Generate trend data (use risk levels from logs)
+    const eyeStrainTrend = userLogs.slice(-7).map((log: any) => {
+      const riskLevelMap = { 'Low': 25, 'Moderate': 50, 'High': 75, 'Critical': 100 };
+      return riskLevelMap[log.riskLevel as keyof typeof riskLevelMap] || 50;
+    });
+
+    // Pad if less than 7 days
+    while (eyeStrainTrend.length < 7) {
+      eyeStrainTrend.unshift(50);
+    }
+
+    const fatigueData = eyeStrainTrend.map((risk) => Math.min(risk * 0.8, 100));
+
+    return {
+      averageScreenTime: parseFloat(avgScreenTime.toFixed(1)),
+      totalHours: parseFloat(totalHours.toFixed(1)),
+      averageBreaks: Math.round(avgBreaks),
+      eyeStrainTrend: eyeStrainTrend.slice(-7),
+      fatigueData: fatigueData.slice(-7),
+      symptomFrequency,
+    };
   };
+
+  const analyticsData = calculateAnalytics();
 
   const handleExport = () => {
     // TODO: Implement export functionality
     alert('Exporting analytics data...');
   };
+
+  // Show empty state if no data
+  if (!hasData) {
+    return (
+      <AuthGuard>
+        <MainLayout>
+          <div className="space-y-8">
+            <div className="text-center py-20">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">No Data Available</h1>
+              <p className="text-muted-foreground text-lg mb-8">
+                You haven&apos;t submitted any survey data yet. Complete the survey on your dashboard to view analytics and insights about your eye health.
+              </p>
+            </div>
+          </div>
+        </MainLayout>
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard>
@@ -63,26 +129,26 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Average Daily Screen Time"
-            value={mockData.averageScreenTime}
+            value={analyticsData?.averageScreenTime || 0}
             unit="hours"
             icon={<Calendar className="w-6 h-6 text-primary" />}
           />
           <MetricCard
             title="Total Hours This Period"
-            value={mockData.totalHours}
+            value={analyticsData?.totalHours || 0}
             unit="hours"
             icon={<TrendingUp className="w-6 h-6 text-secondary" />}
           />
           <MetricCard
             title="Average Breaks/Day"
-            value={mockData.averageBreaks}
+            value={analyticsData?.averageBreaks || 0}
             icon={<Calendar className="w-6 h-6 text-accent" />}
           />
           <MetricCard
             title="Trend Direction"
-            value="Stable"
-            description="Consistent health metrics"
-            icon={<TrendingUp className="w-6 h-6 text-green-600" />}
+            value={analyticsData && analyticsData.eyeStrainTrend[analyticsData.eyeStrainTrend.length - 1] < analyticsData.eyeStrainTrend[0] ? "Improving" : "Stable"}
+            description={analyticsData && analyticsData.eyeStrainTrend[analyticsData.eyeStrainTrend.length - 1] < analyticsData.eyeStrainTrend[0] ? "Risk decreasing" : "Consistent health metrics"}
+            icon={<TrendingUp className={`w-6 h-6 ${analyticsData && analyticsData.eyeStrainTrend[analyticsData.eyeStrainTrend.length - 1] < analyticsData.eyeStrainTrend[0] ? 'text-green-600' : 'text-yellow-600'}`} />}
           />
         </div>
 
@@ -94,7 +160,7 @@ export default function AnalyticsPage() {
             description="7-day rolling average"
           >
             <div className="h-64 flex items-end justify-between gap-1">
-              {mockData.eyeStrainTrend.map((value, index) => (
+              {(analyticsData?.eyeStrainTrend || []).map((value, index) => (
                 <div
                   key={index}
                   className="flex-1 flex flex-col items-center gap-2"
@@ -120,7 +186,7 @@ export default function AnalyticsPage() {
             description="7-day rolling average"
           >
             <div className="h-64 flex items-end justify-between gap-1">
-              {mockData.fatigueData.map((value, index) => (
+              {(analyticsData?.fatigueData || []).map((value, index) => (
                 <div
                   key={index}
                   className="flex-1 flex flex-col items-center gap-2"
@@ -144,7 +210,7 @@ export default function AnalyticsPage() {
         {/* Symptom Frequency */}
         <ChartCard title="Symptom Frequency Analysis">
           <div className="space-y-4">
-            {Object.entries(mockData.symptomFrequency).map(([symptom, frequency]) => (
+            {analyticsData && Object.entries(analyticsData.symptomFrequency).map(([symptom, frequency]) => (
               <div key={symptom} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground capitalize">
