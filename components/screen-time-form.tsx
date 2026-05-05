@@ -356,17 +356,20 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
           <FormField label="Email Address *">
             <input
               type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
+              value={formData.email || ''}
+              onChange={(e) => {
+                handleInputChange('email', e.target.value);
+              }}
               placeholder="your.email@example.com"
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               required
+              autoComplete="off"
             />
           </FormField>
 
           <FormField label="Age *">
             <select
-              value={formData.age}
+              value={formData.age || ''}
               onChange={(e) => handleInputChange('age', e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
               required
@@ -382,7 +385,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
 
           <FormField label="Gender *">
             <select
-              value={formData.gender}
+              value={formData.gender || ''}
               onChange={(e) => handleInputChange('gender', e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
               required
@@ -398,7 +401,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
 
           <FormField label="Year Level *">
             <select
-              value={formData.yearLevel}
+              value={formData.yearLevel || ''}
               onChange={(e) => handleInputChange('yearLevel', e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
               required
@@ -414,7 +417,7 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
 
           <FormField label="Field of Study *">
             <select
-              value={formData.fieldOfStudy}
+              value={formData.fieldOfStudy || ''}
               onChange={(e) => handleInputChange('fieldOfStudy', e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
               required
@@ -589,11 +592,14 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
               step="0.5"
               min="0"
               max="24"
-              value={formData.sleepHours}
-              onChange={(e) => handleInputChange('sleepHours', e.target.value)}
+              value={formData.sleepHours || ''}
+              onChange={(e) => {
+                handleInputChange('sleepHours', e.target.value);
+              }}
               placeholder="e.g., 7.5"
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               required
+              autoComplete="off"
             />
           </FormField>
 
@@ -623,11 +629,14 @@ export function ScreenTimeForm({ onSubmit }: ScreenTimeFormProps) {
 
           <FormField label="Additional Notes or Comments">
             <textarea
-              value={formData.additionalNotes}
-              onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
+              value={formData.additionalNotes || ''}
+              onChange={(e) => {
+                handleInputChange('additionalNotes', e.target.value);
+              }}
               placeholder="Any additional information about your eye health, work environment, or daily habits that might be relevant..."
               rows={5}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              autoComplete="off"
             />
           </FormField>
         </FormSection>
