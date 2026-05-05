@@ -58,15 +58,17 @@ export default function AnalyticsPage() {
     }
 
     const totalLogs = userLogs.length;
-    const avgScreenTime = userLogs.reduce((sum: number, log: any) => sum + (log.screenTime || 0), 0) / totalLogs;
-    const totalHours = userLogs.reduce((sum: number, log: any) => sum + (log.screenTime || 0), 0);
-    const avgBreaks = userLogs.reduce((sum: number, log: any) => sum + (log.breaksTaken || 0), 0) / totalLogs;
+    const avgScreenTime = userLogs.reduce((sum: number, log: any) => sum + (log.screen_time || 0), 0) / totalLogs;
+    const totalHours = userLogs.reduce((sum: number, log: any) => sum + (log.screen_time || 0), 0);
+    const avgBreaks = userLogs.reduce((sum: number, log: any) => sum + (log.breaks_taken || 0), 0) / totalLogs;
+    const avgSleep = userLogs.reduce((sum: number, log: any) => sum + (log.sleep_hours || 0), 0) / totalLogs;
+    const avgBrightness = userLogs.reduce((sum: number, log: any) => sum + (log.brightness || 0), 0) / totalLogs;
 
     // Calculate symptom frequencies
-    const eyeStrainCount = userLogs.filter((log: any) => log.eyeStrain > 0).length;
-    const headachesCount = userLogs.filter((log: any) => log.headaches > 0).length;
-    const dryEyesCount = userLogs.filter((log: any) => log.dryEyes > 0).length;
-    const blurryVisionCount = userLogs.filter((log: any) => log.blurryVision > 0).length;
+    const eyeStrainCount = userLogs.filter((log: any) => log.eye_strain === 1).length;
+    const headachesCount = userLogs.filter((log: any) => log.headaches === 1).length;
+    const dryEyesCount = userLogs.filter((log: any) => log.dry_eyes === 1).length;
+    const blurryVisionCount = userLogs.filter((log: any) => log.blurry_vision === 1).length;
 
     const symptomFrequency = {
       eyeStrain: Math.round((eyeStrainCount / totalLogs) * 100),
@@ -78,7 +80,7 @@ export default function AnalyticsPage() {
     // Generate trend data (use risk levels from logs)
     const eyeStrainTrend = userLogs.slice(-7).map((log: any) => {
       const riskLevelMap = { 'Low': 25, 'Moderate': 50, 'High': 75, 'Critical': 100 };
-      return riskLevelMap[log.riskLevel as keyof typeof riskLevelMap] || 50;
+      return riskLevelMap[log.risk_level as keyof typeof riskLevelMap] || 50;
     });
 
     // Pad if less than 7 days
@@ -92,6 +94,8 @@ export default function AnalyticsPage() {
       averageScreenTime: parseFloat(avgScreenTime.toFixed(1)),
       totalHours: parseFloat(totalHours.toFixed(1)),
       averageBreaks: Math.round(avgBreaks),
+      averageSleep: parseFloat(avgSleep.toFixed(1)),
+      averageBrightness: Math.round(avgBrightness),
       eyeStrainTrend: eyeStrainTrend.slice(-7),
       fatigueData: fatigueData.slice(-7),
       symptomFrequency,

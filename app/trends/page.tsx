@@ -16,9 +16,10 @@ export default function TrendsPage() {
   const [timeRange, setTimeRange] = useState('30days');
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
+  const [trendData, setTrendData] = useState<any>(null);
 
   useEffect(() => {
-    const checkData = async () => {
+    const loadTrendData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -26,14 +27,41 @@ export default function TrendsPage() {
           return;
         }
 
-        // Check if user has any daily logs
+        // Fetch all daily logs for this user
         const { data: logs } = await supabase
           .from('daily_logs')
           .select('*')
           .eq('user_id', user.id)
-          .limit(1);
+          .order('date', { ascending: true });
 
-        setHasData((logs && logs.length > 0) || false);
+        if (logs && logs.length > 0) {
+          setHasData(true);
+
+          // Get last 30 days
+          const last30Days = logs.slice(-30);
+
+          // Map risk levels to numbers
+          const riskLevelMap = { 'Low': 25, 'Moderate': 50, 'High': 75, 'Critical': 100 };
+
+          // Calculate trends
+          const eyeStrainData = last30Days.map((log: any) =>
+            riskLevelMap[log.risk_level as keyof typeof riskLevelMap] || 50
+          );
+
+          const screenTimeData = last30Days.map((log: any) => log.screen_time || 0);
+          const fatigueData = last30Days.map((log: any) => {
+            const riskScore = riskLevelMap[log.risk_level as keyof typeof riskLevelMap] || 50;
+            return Math.min(riskScore * 0.8, 100);
+          });
+
+          setTrendData({
+            eyeStrain: eyeStrainData.length > 0 ? eyeStrainData : [50],
+            screenTime: screenTimeData.length > 0 ? screenTimeData : [5],
+            fatigue: fatigueData.length > 0 ? fatigueData : [40],
+          });
+        } else {
+          setHasData(false);
+        }
       } catch (err) {
         console.error('Error loading data:', err);
       } finally {
@@ -41,7 +69,7 @@ export default function TrendsPage() {
       }
     };
 
-    checkData();
+    loadTrendData();
   }, [router, supabase]);
 
   if (isLoading) {
@@ -95,38 +123,76 @@ export default function TrendsPage() {
     );
   }
 
-  // Mock trend data (for when user has data)
-  const trendData = {
-    eyeStrain: [45, 48, 52, 58, 62, 65, 68, 70, 69, 71, 72, 75, 78, 80, 82, 84, 83, 82, 81, 79, 77, 75, 73, 72, 70, 69, 68, 67, 66, 65],
-    fatigue: [35, 38, 42, 48, 52, 58, 62, 65, 64, 68, 70, 72, 74, 75, 76, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63],
-    screenTime: [6.2, 6.5, 7.0, 7.5, 8.2, 8.5, 8.8, 9.0, 8.8, 9.2, 9.5, 9.8, 10.0, 10.2, 10.5, 10.8, 10.5, 10.2, 10.0, 9.8, 9.5, 9.2, 9.0, 8.8, 8.5, 8.2, 8.0, 7.8, 7.5, 7.2],
+  // Calculate metrics from real data
+  const calculateMetrics = () => {
+    if (!trendData) {
+      return {
+        eyeStrain: {
+          label: 'Eye Strain Risk',
+          unit: '%',
+          current: 0,
+          change: '0%',
+          trend: 'neutral',
+        },
+        screenTime: {
+          label: 'Daily Screen Time',
+          unit: 'hours',
+          current: 0,
+          change: '0%',
+          trend: 'neutral',
+        },
+        fatigue: {
+          label: 'Fatigue Index',
+          unit: '/100',
+          current: 0,
+          change: '0%',
+          trend: 'neutral',
+        },
+      };
+    }
+
+    const calculateTrendChange = (data: number[]) => {
+      if (data.length < 2) return { value: 0, trend: 'neutral' };
+      const first = data[0];
+      const last = data[data.length - 1];
+      const change = ((last - first) / first) * 100;
+      return {
+        value: Math.abs(change),
+        trend: change > 5 ? 'up' : change < -5 ? 'down' : 'neutral',
+      };
+    };
+
+    const eyeStrainChange = calculateTrendChange(trendData.eyeStrain);
+    const screenTimeChange = calculateTrendChange(trendData.screenTime);
+    const fatigueChange = calculateTrendChange(trendData.fatigue);
+
+    return {
+      eyeStrain: {
+        label: 'Eye Strain Risk',
+        unit: '%',
+        current: Math.round(trendData.eyeStrain[trendData.eyeStrain.length - 1]),
+        change: `${eyeStrainChange.trend === 'up' ? '+' : '-'}${eyeStrainChange.value.toFixed(1)}%`,
+        trend: eyeStrainChange.trend,
+      },
+      screenTime: {
+        label: 'Daily Screen Time',
+        unit: 'hours',
+        current: trendData.screenTime[trendData.screenTime.length - 1].toFixed(1),
+        change: `${screenTimeChange.trend === 'up' ? '+' : '-'}${screenTimeChange.value.toFixed(1)}%`,
+        trend: screenTimeChange.trend,
+      },
+      fatigue: {
+        label: 'Fatigue Index',
+        unit: '/100',
+        current: Math.round(trendData.fatigue[trendData.fatigue.length - 1]),
+        change: `${fatigueChange.trend === 'up' ? '+' : '-'}${fatigueChange.value.toFixed(1)}%`,
+        trend: fatigueChange.trend,
+      },
+    };
   };
 
-  const metrics = {
-    eyeStrain: {
-      label: 'Eye Strain Risk',
-      unit: '%',
-      current: 65,
-      change: '+5%',
-      trend: 'up',
-    },
-    fatigue: {
-      label: 'Fatigue Index',
-      unit: '/100',
-      current: 63,
-      change: '-2%',
-      trend: 'down',
-    },
-    screenTime: {
-      label: 'Daily Screen Time',
-      unit: 'hours',
-      current: 7.2,
-      change: '-3.5%',
-      trend: 'down',
-    },
-  };
-
-  const selectedMetricData = trendData[metric as keyof typeof trendData];
+  const metrics = calculateMetrics();
+  const selectedMetricData = trendData?.[metric as keyof typeof trendData] || [50];
   const selectedMetric = metrics[metric as keyof typeof metrics];
   const maxValue = Math.max(...selectedMetricData);
   const minValue = Math.min(...selectedMetricData);
