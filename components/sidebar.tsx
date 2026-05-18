@@ -12,7 +12,8 @@ import {
   TrendingUp,
   AlertCircle,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -52,6 +53,12 @@ const navItems: NavItem[] = [
     label: 'Trends',
     href: '/trends',
     icon: <TrendingUp className="w-5 h-5" />,
+    category: 'main',
+  },
+  {
+    label: 'ML Progress',
+    href: '/model-progress',
+    icon: <Zap className="w-5 h-5" />,
     category: 'main',
   },
   {

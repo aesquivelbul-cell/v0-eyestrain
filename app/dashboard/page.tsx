@@ -8,18 +8,66 @@ import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
 
+interface DailyLog {
+  id: string;
+  user_id: string;
+  date: string;
+  screen_time: number;
+  breaks_taken: number;
+  eye_strain: number;
+  headaches: number;
+  dry_eyes: number;
+  blurry_vision: number;
+  sleep_hours: number;
+  brightness: number;
+  risk_level: string;
+  created_at: string;
+}
+
+interface Prediction {
+  id: string;
+  user_id: string;
+  daily_log_id: string;
+  risk_level: number;
+  risk_percentage: number;
+  fatigue_score: number;
+  confidence: number;
+  recommendations: string[];
+  created_at: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  created_at: string;
+  displayName: string;
+  profile?: any;
+}
+
+interface DashboardAnalytics {
+  averageScreenTime: number;
+  averageSleepHours: number;
+  averageBrightness: number;
+  totalLogsRecorded: number;
+  eyeStrainFrequency: number;
+  headachesFrequency: number;
+  dryEyesFrequency: number;
+  blurryVisionFrequency: number;
+  logs: DailyLog[];
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? createClient() : null;
   
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [prediction, setPrediction] = useState<any>(null);
+  const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [hasData, setHasData] = useState(false);
-  const [allLogs, setAllLogs] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [allLogs, setAllLogs] = useState<DailyLog[]>([]);
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -103,9 +151,9 @@ export default function DashboardPage() {
           const blurryVisionCount = logs.filter(log => log.blurry_vision === 1).length;
 
           setAnalytics({
-            averageScreenTime: avgScreenTime,
-            averageSleepHours: avgSleepHours,
-            averageBrightness: avgBrightness,
+            averageScreenTime: parseFloat(avgScreenTime as string),
+            averageSleepHours: parseFloat(avgSleepHours as string),
+            averageBrightness: parseInt(avgBrightness as string),
             totalLogsRecorded: logs.length,
             eyeStrainFrequency: eyeStrainCount,
             headachesFrequency: headachesCount,
@@ -189,9 +237,9 @@ export default function DashboardPage() {
           const blurryVisionCount = logs.filter(log => log.blurry_vision === 1).length;
 
           setAnalytics({
-            averageScreenTime: avgScreenTime,
-            averageSleepHours: avgSleepHours,
-            averageBrightness: avgBrightness,
+            averageScreenTime: parseFloat(avgScreenTime as string),
+            averageSleepHours: parseFloat(avgSleepHours as string),
+            averageBrightness: parseInt(avgBrightness as string),
             totalLogsRecorded: logs.length,
             eyeStrainFrequency: eyeStrainCount,
             headachesFrequency: headachesCount,

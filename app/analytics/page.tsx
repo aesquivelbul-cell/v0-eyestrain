@@ -8,12 +8,44 @@ import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface DailyLog {
+  id: string;
+  user_id: string;
+  date: string;
+  screen_time: number;
+  breaks_taken: number;
+  eye_strain: number;
+  headaches: number;
+  dry_eyes: number;
+  blurry_vision: number;
+  sleep_hours: number;
+  brightness: number;
+  risk_level: string;
+  created_at: string;
+}
+
+interface Analytics {
+  averageScreenTime: number;
+  totalHours: number;
+  averageBreaks: number;
+  averageSleep: number;
+  averageBrightness: number;
+  eyeStrainTrend: number[];
+  fatigueData: number[];
+  symptomFrequency: {
+    eyeStrain: number;
+    headaches: number;
+    dryEyes: number;
+    blurryVision: number;
+  };
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const supabase = createClient();
   const [timeRange, setTimeRange] = useState('7days');
   const [isLoading, setIsLoading] = useState(true);
-  const [userLogs, setUserLogs] = useState<any[]>([]);
+  const [userLogs, setUserLogs] = useState<DailyLog[]>([]);
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
@@ -52,23 +84,23 @@ export default function AnalyticsPage() {
   }, [router, supabase]);
 
   // Calculate real data from user logs
-  const calculateAnalytics = () => {
+  const calculateAnalytics = (): Analytics | null => {
     if (userLogs.length === 0) {
       return null;
     }
 
     const totalLogs = userLogs.length;
-    const avgScreenTime = userLogs.reduce((sum: number, log: any) => sum + (log.screen_time || 0), 0) / totalLogs;
-    const totalHours = userLogs.reduce((sum: number, log: any) => sum + (log.screen_time || 0), 0);
-    const avgBreaks = userLogs.reduce((sum: number, log: any) => sum + (log.breaks_taken || 0), 0) / totalLogs;
-    const avgSleep = userLogs.reduce((sum: number, log: any) => sum + (log.sleep_hours || 0), 0) / totalLogs;
-    const avgBrightness = userLogs.reduce((sum: number, log: any) => sum + (log.brightness || 0), 0) / totalLogs;
+    const avgScreenTime = userLogs.reduce((sum, log) => sum + (log.screen_time || 0), 0) / totalLogs;
+    const totalHours = userLogs.reduce((sum, log) => sum + (log.screen_time || 0), 0);
+    const avgBreaks = userLogs.reduce((sum, log) => sum + (log.breaks_taken || 0), 0) / totalLogs;
+    const avgSleep = userLogs.reduce((sum, log) => sum + (log.sleep_hours || 0), 0) / totalLogs;
+    const avgBrightness = userLogs.reduce((sum, log) => sum + (log.brightness || 0), 0) / totalLogs;
 
     // Calculate symptom frequencies
-    const eyeStrainCount = userLogs.filter((log: any) => log.eye_strain === 1).length;
-    const headachesCount = userLogs.filter((log: any) => log.headaches === 1).length;
-    const dryEyesCount = userLogs.filter((log: any) => log.dry_eyes === 1).length;
-    const blurryVisionCount = userLogs.filter((log: any) => log.blurry_vision === 1).length;
+    const eyeStrainCount = userLogs.filter((log) => log.eye_strain === 1).length;
+    const headachesCount = userLogs.filter((log) => log.headaches === 1).length;
+    const dryEyesCount = userLogs.filter((log) => log.dry_eyes === 1).length;
+    const blurryVisionCount = userLogs.filter((log) => log.blurry_vision === 1).length;
 
     const symptomFrequency = {
       eyeStrain: Math.round((eyeStrainCount / totalLogs) * 100),
@@ -78,9 +110,9 @@ export default function AnalyticsPage() {
     };
 
     // Generate trend data (use risk levels from logs)
-    const eyeStrainTrend = userLogs.slice(-7).map((log: any) => {
-      const riskLevelMap = { 'Low': 25, 'Moderate': 50, 'High': 75, 'Critical': 100 };
-      return riskLevelMap[log.risk_level as keyof typeof riskLevelMap] || 50;
+    const eyeStrainTrend = userLogs.slice(-7).map((log) => {
+      const riskLevelMap: Record<string, number> = { 'Low': 25, 'Moderate': 50, 'High': 75, 'Critical': 100 };
+      return riskLevelMap[log.risk_level] || 50;
     });
 
     // Pad if less than 7 days

@@ -253,7 +253,7 @@ export default function RiskPredictionPage() {
               {recommendations && recommendations.length > 0 ? (
                 recommendations.map((rec: string, idx: number) => (
                   <div key={idx} className="flex gap-3 p-3 bg-muted/50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
                     <p className="text-sm text-foreground">{rec}</p>
                   </div>
                 ))
