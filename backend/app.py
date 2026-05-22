@@ -3,11 +3,12 @@ EyeGuard Flask Application
 Main entry point for the backend API
 """
 
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 import os
+import threading
 from datetime import timedelta
 
 # Initialize extensions
@@ -17,6 +18,41 @@ jwt = JWTManager()
 # Global ML models
 ml_predictor = None
 predictor_manager = None
+
+# Track how many new logs have arrived since last retrain
+_new_logs_since_retrain = 0
+RETRAIN_EVERY_N_LOGS = int(os.environ.get("RETRAIN_EVERY_N_LOGS", "10"))
+
+
+def _retrain_in_background(app):
+    """Run model retraining in a background thread so the API stays responsive."""
+    global ml_predictor, _new_logs_since_retrain
+    with app.app_context():
+        try:
+            from ml.storage import get_predictor_manager
+            from ml.training import train_production_models
+
+            print("[ML] Background retrain started...")
+            trainer, results = train_production_models()
+            new_predictor = predictor_manager.create_new_predictor(trainer)
+            ml_predictor = new_predictor
+            _new_logs_since_retrain = 0
+            print(f"[ML] Background retrain complete. Results: {results}")
+        except Exception as e:
+            print(f"[ML] Background retrain failed: {e}")
+
+
+def trigger_retrain_if_needed(app):
+    """
+    Increment the new-log counter and kick off a background retrain
+    once RETRAIN_EVERY_N_LOGS new logs have been submitted.
+    """
+    global _new_logs_since_retrain
+    _new_logs_since_retrain += 1
+    if _new_logs_since_retrain >= RETRAIN_EVERY_N_LOGS:
+        t = threading.Thread(target=_retrain_in_background, args=(app,), daemon=True)
+        t.start()
+
 
 def create_app(config_name='development'):
     """Application factory function"""
@@ -41,6 +77,50 @@ def create_app(config_name='development'):
     
     # Register blueprints
     register_blueprints(app)
+
+    # ── ML retrain endpoint ──────────────────────────────────────────────────
+    @app.route('/api/ml/notify-new-log', methods=['POST'])
+    def notify_new_log():
+        """
+        Called by the Next.js API route every time a daily log is saved.
+        Increments the counter and triggers a background retrain when the
+        threshold is reached.
+        """
+        trigger_retrain_if_needed(app)
+        return jsonify({"success": True})
+
+    @app.route('/api/ml/retrain', methods=['POST'])
+    def retrain_models():
+        """
+        Manually trigger a model retrain from Supabase data.
+        Protected by a simple API key header: X-Retrain-Key.
+        """
+        expected_key = app.config.get("RETRAIN_API_KEY", "")
+        provided_key = request.headers.get("X-Retrain-Key", "")
+        if expected_key and provided_key != expected_key:
+            return jsonify({"success": False, "message": "Unauthorized"}), 401
+
+        t = threading.Thread(
+            target=_retrain_in_background, args=(app,), daemon=True
+        )
+        t.start()
+        return jsonify({
+            "success": True,
+            "message": "Retrain started in background. Check server logs for progress."
+        })
+
+    @app.route('/api/ml/status', methods=['GET'])
+    def ml_status():
+        """Return current ML model status and training data count."""
+        from ml.supabase_loader import count_training_rows
+        row_count = count_training_rows()
+        return jsonify({
+            "model_loaded": ml_predictor is not None,
+            "supabase_rows": row_count,
+            "new_logs_since_retrain": _new_logs_since_retrain,
+            "retrain_threshold": RETRAIN_EVERY_N_LOGS,
+        })
+    # ────────────────────────────────────────────────────────────────────────
     
     # Create database tables
     with app.app_context():
@@ -57,12 +137,17 @@ def create_app(config_name='development'):
             ml_predictor = predictor_manager.get_predictor()
             
             if ml_predictor is None:
-                print("[ML] Training new ML models...")
+                print("[ML] No saved models found. Training from Supabase data...")
                 trainer, results = train_production_models()
                 ml_predictor = predictor_manager.create_new_predictor(trainer)
-                print(f"[ML] Model training complete. Results: {results}")
+                print(f"[ML] Initial training complete. Results: {results}")
             else:
-                print("[ML] Loaded existing ML models")
+                print("[ML] Loaded existing ML models from disk")
+                # Kick off a background retrain to incorporate any new Supabase data
+                t = threading.Thread(
+                    target=_retrain_in_background, args=(app,), daemon=True
+                )
+                t.start()
         except Exception as e:
             print(f"[ML] Error initializing ML models: {e}")
             ml_predictor = None

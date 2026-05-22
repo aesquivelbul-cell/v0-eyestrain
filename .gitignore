@@ -9,6 +9,17 @@ next.user-config.*
 
 # Environment variables
 .env*.local
+backend/.env
+backend/.env.*
+
+# ML model files (large binary files, regenerated on startup)
+backend/ml/models/*.pkl
+
+# Python cache
+backend/__pycache__/
+backend/**/__pycache__/
+backend/instance/
+*.pyc
 
 # Common ignores
 node_modules

@@ -251,6 +251,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fire-and-forget: notify Flask backend that a new log was saved
+    // so it can auto-retrain when the threshold is reached.
+    const flaskUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    fetch(`${flaskUrl}/api/ml/notify-new-log`, { method: 'POST' }).catch(() => {
+      // Ignore errors — Flask backend may not be running
+    });
+
     return NextResponse.json({
       success: true,
       daily_log_id: dailyLog.id,
@@ -261,6 +268,10 @@ export async function POST(request: NextRequest) {
       confidence: confidence,
       recommendations: recommendations,
     });
+
+    // Fire-and-forget: notify Flask backend that a new log was saved
+    // so it can auto-retrain when the threshold is reached.
+    // We do this after returning the response so it never blocks the user.
   } catch (error) {
     console.error('API error:', error);
     return NextResponse.json(

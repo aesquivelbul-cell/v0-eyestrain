@@ -59,6 +59,7 @@ class SyntheticDataGenerator:
 
                 # Symptom correlation with screen time and breaks
                 symptom_prob = (screen_time / 16) * (1 - break_minutes / 60)
+                symptom_prob = np.clip(symptom_prob, 0, 1)
                 num_symptoms = np.random.choice([0, 1, 2, 3], p=[
                     max(0, 1 - symptom_prob),
                     symptom_prob * 0.5,
@@ -175,7 +176,7 @@ class ModelTrainer:
         self.risk_classifier.fit(X, y_risk_levels)
         classifier_scores = cross_val_score(
             self.risk_classifier.model,
-            self.feature_engineer.scaler.transform(X),
+            self.risk_classifier.scaler.transform(X),
             y_risk_levels,
             cv=5,
             scoring='accuracy'
@@ -186,7 +187,7 @@ class ModelTrainer:
         self.risk_regressor.fit(X, y_risk_percentages)
         regressor_scores = cross_val_score(
             self.risk_regressor.model,
-            self.feature_engineer.scaler.transform(X),
+            self.risk_regressor.scaler.transform(X),
             y_risk_percentages,
             cv=5,
             scoring='r2'
@@ -197,7 +198,7 @@ class ModelTrainer:
         self.fatigue_predictor.fit(X, y_fatigue)
         fatigue_scores = cross_val_score(
             self.fatigue_predictor.model,
-            self.feature_engineer.scaler.transform(X),
+            self.fatigue_predictor.scaler.transform(X),
             y_fatigue,
             cv=5,
             scoring='r2'
@@ -227,21 +228,53 @@ class ModelTrainer:
         return self.feature_engineer
 
 
-def train_production_models() -> Tuple[ModelTrainer, Dict[str, float]]:
+def train_production_models(min_real_samples: int = 20) -> Tuple[ModelTrainer, Dict[str, float]]:
     """
-    Train production-ready models with synthetic data.
-    
+    Train production-ready models.
+
+    Strategy:
+    1. Try to fetch real data from Supabase.
+    2. If enough real data exists (>= min_real_samples), train on it.
+    3. If not enough real data, supplement with synthetic data so the
+       model still works while the app is being used.
+
+    Args:
+        min_real_samples: Minimum real rows needed before we prefer real data.
+
     Returns:
         Tuple of (trained ModelTrainer, validation results)
     """
-    print("[ML] Generating synthetic training data...")
-    daily_logs, risk_levels, risk_percentages = SyntheticDataGenerator.generate_synthetic_logs(
-        num_samples=300,
-        num_days=30
-    )
-    print(f"[ML] Generated {len(daily_logs)} training samples")
+    from .supabase_loader import fetch_training_data
+
+    real_logs, real_risk_levels, real_risk_pcts = fetch_training_data()
+    n_real = len(real_logs)
+    print(f"[ML] Real training samples from Supabase: {n_real}")
+
+    if n_real >= min_real_samples:
+        # Enough real data — train purely on it
+        print("[ML] Training on real Supabase data")
+        daily_logs = real_logs
+        risk_levels = real_risk_levels
+        risk_percentages = real_risk_pcts
+    else:
+        # Not enough real data yet — generate synthetic and mix in any real rows
+        needed_synthetic = max(300 * 30, min_real_samples * 30)  # at least 9000 samples
+        print(f"[ML] Not enough real data ({n_real} rows). "
+              f"Generating {needed_synthetic} synthetic samples and mixing in real data.")
+        syn_logs, syn_levels, syn_pcts = SyntheticDataGenerator.generate_synthetic_logs(
+            num_samples=300,
+            num_days=30
+        )
+        # Real data gets appended last so it has the most influence
+        daily_logs = syn_logs + real_logs
+        risk_levels = syn_levels + real_risk_levels
+        risk_percentages = syn_pcts + real_risk_pcts
+
+    print(f"[ML] Total training samples: {len(daily_logs)}")
 
     trainer = ModelTrainer()
     results = trainer.train_models(daily_logs, risk_levels, risk_percentages)
+    results["real_samples_used"] = n_real
+    results["total_samples"] = len(daily_logs)
 
     return trainer, results

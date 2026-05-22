@@ -26,6 +26,14 @@ class Config:
     # CORS
     CORS_HEADERS = 'Content-Type'
 
+    # Supabase (used by ML training to read daily_logs)
+    SUPABASE_URL = os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL') or ''
+    SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or ''
+
+    # ML auto-retrain: retrain after every N new daily logs submitted
+    RETRAIN_API_KEY = os.environ.get('RETRAIN_API_KEY') or ''
+    RETRAIN_EVERY_N_LOGS = int(os.environ.get('RETRAIN_EVERY_N_LOGS') or '10')
+
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
