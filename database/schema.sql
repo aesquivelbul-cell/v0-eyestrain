@@ -35,14 +35,15 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 -- Daily Logs Table (screen time and symptom tracking)
 CREATE TABLE IF NOT EXISTS public.daily_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- user_id is nullable to allow survey/research imports without auth users
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   
   -- Date Information
   date DATE NOT NULL,
   
   -- Personal Info (cached for analysis)
   email VARCHAR(255),
-  age INT,
+  age VARCHAR(10),  -- stored as range e.g. "17-18", "19-20", "21-22", "23+"
   gender VARCHAR(50),
   year_level VARCHAR(50),
   field_of_study VARCHAR(100),
@@ -206,15 +207,16 @@ ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies - Users can only see their own data
+-- Survey rows (user_id IS NULL) are visible to all authenticated users for research
 CREATE POLICY "Users can view their own daily logs"
   ON public.daily_logs
   FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can insert their own daily logs"
   ON public.daily_logs
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can update their own daily logs"
   ON public.daily_logs
@@ -272,3 +274,18 @@ INSERT INTO public.wellness_tips (category, title, description, implementation_s
   ('dry_eyes', 'Combat Dry Eyes', 'Prevent and manage dry eye symptoms', 'Use lubricating eye drops, blink frequently, use a humidifier', 8),
   ('blue_light', 'Blue Light Filter', 'Reduce blue light exposure', 'Enable blue light filter on devices, especially in evening hours', 6)
 ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MIGRATION: Run this if the table already exists with the old NOT NULL constraint
+-- Go to Supabase → SQL Editor and run these lines:
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE public.daily_logs ALTER COLUMN user_id DROP NOT NULL;
+-- ALTER TABLE public.daily_logs DROP CONSTRAINT IF EXISTS daily_logs_user_id_fkey;
+-- ALTER TABLE public.daily_logs ADD CONSTRAINT daily_logs_user_id_fkey
+--   FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+-- DROP POLICY IF EXISTS "Users can view their own daily logs" ON public.daily_logs;
+-- DROP POLICY IF EXISTS "Users can insert their own daily logs" ON public.daily_logs;
+-- CREATE POLICY "Users can view their own daily logs" ON public.daily_logs
+--   FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
+-- CREATE POLICY "Users can insert their own daily logs" ON public.daily_logs
+--   FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
