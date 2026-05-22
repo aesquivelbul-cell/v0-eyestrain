@@ -18,3 +18,13 @@ git add .
 git status
 git commit -m "Add ML Supabase training, survey import, run guide, admin+recommendations spec"
 git push origin main
+
+localhost:3000
+
+
+
+
+commit and push
+git add .
+git commit -m "Add admin panel, dynamic recommendations, and UI fixes"
+git push

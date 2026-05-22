@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
@@ -9,11 +9,11 @@ import {
   BarChart3,
   Activity,
   Settings,
-  Book,
   ChevronRight,
   Eye,
-  X,
+  LogOut,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -60,6 +60,13 @@ const menuItems = [
 
 export function AdminSidebar({ isOpen }: AdminSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   return (
     <aside
@@ -106,7 +113,15 @@ export function AdminSidebar({ isOpen }: AdminSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+          aria-label="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-sm font-semibold">Logout</span>
+        </button>
         <p className="text-xs text-muted-foreground text-center">
           EyeGuard Admin v1.0
         </p>
