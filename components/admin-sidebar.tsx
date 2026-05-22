@@ -63,7 +63,7 @@ export function AdminSidebar({ isOpen }: AdminSidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col transition-all duration-300 z-40 ${
+      className={`h-full w-64 bg-card border-r border-border flex flex-col transition-all duration-300 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >

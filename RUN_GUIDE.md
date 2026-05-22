@@ -13,3 +13,8 @@ venv\Scripts\activate
 python app.py
 
 
+cd "c:/Users/macky/.gemini/antigravity/scratch/v0-eyestrain"
+git add .
+git status
+git commit -m "Add ML Supabase training, survey import, run guide, admin+recommendations spec"
+git push origin main

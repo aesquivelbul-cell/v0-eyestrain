@@ -324,16 +324,21 @@ export default function TrendsPage() {
                 Pattern Analysis
               </p>
               <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                Your {selectedMetric.label.toLowerCase()} shows a gradual increase over the 30-day period. Consider implementing preventive measures to reverse this trend.
+                {selectedMetric.trend === 'up'
+                  ? `Your ${selectedMetric.label.toLowerCase()} has been increasing. Consider implementing preventive measures.`
+                  : selectedMetric.trend === 'down'
+                  ? `Your ${selectedMetric.label.toLowerCase()} has been decreasing — a positive sign. Keep up your current habits.`
+                  : `Your ${selectedMetric.label.toLowerCase()} has been relatively stable across your logged entries.`}
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-              <p className="text-sm font-semibold text-green-900 dark:text-green-100">
-                Good News
+            <div className="p-4 rounded-lg bg-muted border border-border">
+              <p className="text-sm font-semibold text-foreground">
+                Data Range
               </p>
-              <p className="text-sm text-green-800 dark:text-green-200 mt-2">
-                Compared to 90 days ago, your health metrics are more stable. This indicates improved awareness and management of eye strain.
+              <p className="text-sm text-muted-foreground mt-2">
+                Based on {selectedMetricData.length} log {selectedMetricData.length === 1 ? 'entry' : 'entries'}.
+                Min: {minValue.toFixed(1)}{selectedMetric.unit} · Avg: {avgValue}{selectedMetric.unit} · Max: {maxValue.toFixed(1)}{selectedMetric.unit}
               </p>
             </div>
           </div>

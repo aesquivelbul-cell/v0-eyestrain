@@ -11,10 +11,10 @@ import {
   Eye,
   TrendingUp,
   AlertCircle,
-  Menu,
-  X
+  ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { isAdmin } from '@/lib/admin-guard';
 
 interface NavItem {
   label: string;
@@ -72,6 +72,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,6 +80,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
+          setIsAdminUser(isAdmin(authUser));
+
           const { data: profile } = await supabase
             .from('user_profiles')
             .select('*')
@@ -195,6 +198,22 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             })}
           </div>
         </div>
+
+        {/* Admin Panel button — only visible to admin users */}
+        {isAdminUser && (
+          <div className="pt-4">
+            <p className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/60 uppercase">
+              Admin
+            </p>
+            <Link
+              href="/admin/dashboard"
+              className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+            >
+              <ShieldCheck className="w-5 h-5" />
+              <span className="text-sm font-medium">Admin Panel</span>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* User Info */}

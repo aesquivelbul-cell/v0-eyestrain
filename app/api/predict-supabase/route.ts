@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { selectRecommendations, type RecommendationInput } from '@/lib/recommendations';
 
 export async function POST(request: NextRequest) {
   try {
@@ -117,68 +118,18 @@ export async function POST(request: NextRequest) {
     let confidence = 0.7 + (symptomCount * 0.05);
     confidence = Math.min(0.95, confidence);
 
-    // Generate personalized recommendations based on risk factors
-    const recommendations = [];
-    
-    // Screen time recommendations
-    if (screenTime > 8) {
-      recommendations.push('Your screen time is very high. Follow the 20-20-20 rule: Every 20 minutes, look at something 20 feet away for 20 seconds');
-    } else if (screenTime > 6) {
-      recommendations.push('Take regular 5-minute breaks every hour to reduce eye strain');
-    } else if (screenTime > 4) {
-      recommendations.push('Continue maintaining regular breaks to prevent eye strain');
-    }
-    
-    // Brightness recommendations
-    if (brightness < 40) {
-      recommendations.push('Your screen is too dark. Increase brightness to 60-80% to reduce eye strain and improve visibility');
-    } else if (brightness > 85) {
-      recommendations.push('Your screen is too bright. Reduce brightness to 60-80% to prevent eye fatigue');
-    }
-    
-    // Sleep recommendations
-    if (sleepHours < 6) {
-      recommendations.push('CRITICAL: Get at least 6-8 hours of sleep. Poor sleep significantly increases eye strain and fatigue');
-    } else if (sleepHours < 7) {
-      recommendations.push('Try to get 7-8 hours of sleep per night for optimal eye health recovery');
-    }
-    
-    // Break frequency recommendations
-    if (breaksTaken < 3 && screenTime > 4) {
-      recommendations.push('You took very few breaks. Aim for at least 3-4 breaks during your screen time');
-    }
-    
-    // Symptom-specific recommendations
-    const symptomArray = Array.isArray(symptoms) ? symptoms : Object.entries(symptoms).filter(([, v]) => v).map(([k]) => k);
-    
-    if (symptomArray.includes('dryEyes') || symptomArray.includes('dry_eyes')) {
-      recommendations.push('Dry eyes detected: Use lubricating eye drops, blink frequently, and consider a humidifier');
-    }
-    if (symptomArray.includes('headaches')) {
-      recommendations.push('Headaches reported: Check your monitor position (eye level), adjust lighting, and reduce glare');
-    }
-    if (symptomArray.includes('blurryVision') || symptomArray.includes('blurry_vision')) {
-      recommendations.push('Blurry vision detected: Reduce screen brightness, increase font size, and take more frequent breaks');
-    }
-    if (symptomArray.includes('eyeStrain') || symptomArray.includes('eye_strain')) {
-      recommendations.push('Eye strain detected: Position your monitor 20-26 inches away, keep it at eye level, and use anti-glare screen');
-    }
-    
-    // Risk level-based recommendations
-    if (riskLevel >= 2) {
-      recommendations.push('Your risk level is HIGH. Consider scheduling an eye exam with a professional optometrist');
-    }
-    if (riskLevel >= 3) {
-      recommendations.push('URGENT: Your eye strain risk is CRITICAL. Seek professional eye care and significantly reduce screen time');
-    }
-    
-    // General wellness
-    if (recommendations.length < 4) {
-      recommendations.push('Maintain good posture while working on screens to reduce neck and shoulder strain');
-    }
-    if (recommendations.length < 5) {
-      recommendations.push('Use blue light filtering glasses or enable blue light filter on your devices during evening hours');
-    }
+    // Generate personalized recommendations using the dynamic recommendation engine
+    const recInput: RecommendationInput = {
+      screenTime,
+      sleepHours,
+      brightness,
+      riskLevel: ['Low', 'Moderate', 'High', 'Critical'][riskLevel],
+      eyeStrain: symptoms.includes('eyeStrain') ? 1 : 0,
+      headaches: symptoms.includes('headaches') ? 1 : 0,
+      blurryVision: symptoms.includes('blurryVision') ? 1 : 0,
+      dryEyes: symptoms.includes('dryEyes') ? 1 : 0,
+    };
+    const recommendations = await selectRecommendations(recInput);
 
     // Save daily log to Supabase (use upsert to handle updates)
     const today = new Date().toISOString().split('T')[0];

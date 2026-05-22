@@ -390,12 +390,36 @@ export default function DashboardPage() {
             <div className="border border-border rounded-xl p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">💡 Personalized Recommendations</h3>
               <ul className="space-y-3">
-                {prediction.recommendations?.map((rec: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <div className="mt-1 w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                    <span className="text-sm text-muted-foreground">{rec}</span>
-                  </li>
-                ))}
+                {prediction.recommendations?.map(
+                  (rawRec: unknown, idx: number) => {
+                    // Parse stringified JSON objects if needed
+                    let rec = rawRec;
+                    if (typeof rawRec === 'string') {
+                      try {
+                        const parsed = JSON.parse(rawRec);
+                        if (parsed && typeof parsed === 'object' && parsed.title) rec = parsed;
+                      } catch { /* plain string */ }
+                    }
+                    if (typeof rec === 'string') {
+                      return (
+                        <li key={idx} className="flex items-start gap-3">
+                          <div className="mt-1 w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">{rec}</span>
+                        </li>
+                      )
+                    }
+                    const r = rec as { title: string; description: string; category: string }
+                    return (
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="mt-1 w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{r.title}</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">{r.description}</p>
+                        </div>
+                      </li>
+                    )
+                  }
+                )}
               </ul>
             </div>
           </div>

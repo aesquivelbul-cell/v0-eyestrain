@@ -116,7 +116,22 @@ export default function RiskPredictionPage() {
   const riskLevel = predictions?.risk_level || 0;
   const fatigueScore = predictions?.fatigue_score || 0;
   const confidence = predictions?.confidence || 0;
-  const recommendations = predictions?.recommendations || [];
+
+  // Parse recommendations — handle both string[] (legacy) and object[] (new) shapes
+  // Also handle the case where each item is a stringified JSON object
+  const rawRecs = predictions?.recommendations || [];
+  const recommendations = rawRecs.map((rec: unknown) => {
+    if (typeof rec === 'string') {
+      try {
+        const parsed = JSON.parse(rec);
+        if (parsed && typeof parsed === 'object' && parsed.title) return parsed;
+      } catch {
+        // not JSON, return as-is string
+      }
+      return rec;
+    }
+    return rec;
+  });
 
   // Get risk level label
   const getRiskLevelLabel = (level: number) => {
@@ -150,33 +165,29 @@ export default function RiskPredictionPage() {
   };
 
   const riskFactors = [
-    { factor: 'Screen Time Impact', weight: 'Based on Hours', impact: Math.min(100, (riskPercentage * 0.35)) },
-    { factor: 'Sleep Quality', weight: 'Recovery Factor', impact: Math.max(0, 30 - (fatigueScore * 3)) },
-    { factor: 'Symptom Frequency', weight: 'Weekly Occurrence', impact: Math.min(100, (riskPercentage * 0.25)) },
-    { factor: 'Screen Brightness', weight: 'Display Settings', impact: Math.min(100, (riskPercentage * 0.10)) },
-    { factor: 'Break Schedule', weight: 'Usage Pattern', impact: Math.max(0, 20 - (confidence * 20)) },
+    { factor: 'Screen Time Impact', weight: 'Based on Hours', impact: parseFloat(Math.min(100, (riskPercentage * 0.35)).toFixed(1)) },
+    { factor: 'Sleep Quality', weight: 'Recovery Factor', impact: parseFloat(Math.max(0, 30 - (fatigueScore * 3)).toFixed(1)) },
+    { factor: 'Symptom Frequency', weight: 'Weekly Occurrence', impact: parseFloat(Math.min(100, (riskPercentage * 0.25)).toFixed(1)) },
+    { factor: 'Screen Brightness', weight: 'Display Settings', impact: parseFloat(Math.min(100, (riskPercentage * 0.10)).toFixed(1)) },
+    { factor: 'Break Schedule', weight: 'Usage Pattern', impact: parseFloat(Math.max(0, 20 - (confidence * 20)).toFixed(1)) },
   ];
 
   const preventiveMeasures = [
     {
       title: '20-20-20 Rule',
       description: 'Every 20 minutes, look at something 20 feet away for 20 seconds',
-      impact: 'Reduces strain by 60%',
     },
     {
       title: 'Optimize Workspace',
       description: 'Ensure proper lighting and screen position at eye level',
-      impact: 'Reduces strain by 35%',
     },
     {
       title: 'Use Blue Light Filter',
       description: 'Enable blue light reduction, especially in evenings',
-      impact: 'Reduces fatigue by 25%',
     },
     {
       title: 'Regular Exercise',
-      description: 'Physical activity improves overall eye health',
-      impact: 'Reduces strain by 20%',
+      description: 'Physical activity and movement help reduce overall fatigue',
     },
   ];
 
@@ -251,10 +262,19 @@ export default function RiskPredictionPage() {
           >
             <div className="space-y-3">
               {recommendations && recommendations.length > 0 ? (
-                recommendations.map((rec: string, idx: number) => (
+                recommendations.map((rec: { title: string; description: string; category: string } | string, idx: number) => (
                   <div key={idx} className="flex gap-3 p-3 bg-muted/50 rounded-lg">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-foreground">{rec}</p>
+                    <div>
+                      {typeof rec === 'string' ? (
+                        <p className="text-sm text-foreground">{rec}</p>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium text-foreground">{rec.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -301,7 +321,6 @@ export default function RiskPredictionPage() {
               >
                 <h4 className="font-semibold text-foreground">{measure.title}</h4>
                 <p className="text-sm text-muted-foreground mt-2">{measure.description}</p>
-                <p className="text-xs font-semibold text-primary mt-3">{measure.impact}</p>
               </div>
             ))}
           </div>

@@ -423,6 +423,21 @@ python app.py
 
 **That's it!** You now have a fully functional AI-powered eye health tracking system running locally.
 
+## 🌐 Environment Variables
+
+The following environment variables are required. Copy `.env.local.example` (or create `.env.local`) and fill in the values.
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (found in Project Settings → API) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key — safe to expose to the browser |
+| `NEXT_PUBLIC_API_URL` | Flask backend URL (default: `http://localhost:5000/api`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server-side only.** Supabase service role key. Bypasses RLS. Never expose to the browser. |
+| `NEXT_PUBLIC_ADMIN_EMAIL` | Email address of the admin user (fallback admin check when `user_metadata.role` is not set) |
+| `NEXT_PUBLIC_RETRAIN_KEY` | Secret key for triggering ML model retraining via the `/api/admin/ml-retrain` endpoint |
+
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` must **never** be committed to version control or exposed to the browser. It is only used in server-side API routes under `app/api/admin/`.
+
 ---
 
 **Protect your eyes. Predict the risk. Improve your health.** 👁️

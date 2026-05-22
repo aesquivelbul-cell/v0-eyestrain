@@ -94,16 +94,16 @@ export default function Home() {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 py-8 border-y border-border">
             <div>
-              <p className="text-3xl font-bold text-primary">87%</p>
-              <p className="text-sm text-muted-foreground mt-1">Prediction Accuracy</p>
+              <p className="text-3xl font-bold text-primary">ML</p>
+              <p className="text-sm text-muted-foreground mt-1">Powered Predictions</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-secondary">500+</p>
-              <p className="text-sm text-muted-foreground mt-1">Active Users</p>
+              <p className="text-3xl font-bold text-secondary">Real</p>
+              <p className="text-sm text-muted-foreground mt-1">Data-Driven Insights</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-accent">60M+</p>
-              <p className="text-sm text-muted-foreground mt-1">Data Points Analyzed</p>
+              <p className="text-3xl font-bold text-accent">Daily</p>
+              <p className="text-sm text-muted-foreground mt-1">Health Tracking</p>
             </div>
           </div>
         </div>

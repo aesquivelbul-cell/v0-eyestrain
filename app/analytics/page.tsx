@@ -270,35 +270,58 @@ export default function AnalyticsPage() {
         {/* Insights */}
         <ChartCard title="Key Insights">
           <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-              <p className="text-sm font-semibold text-green-900 dark:text-green-100">
-                ✓ Positive Trend
-              </p>
-              <p className="text-sm text-green-800 dark:text-green-200 mt-2">
-                Your eye strain risk has decreased by 12% over the last 7 days. Keep maintaining
-                regular breaks!
-              </p>
-            </div>
+            {analyticsData && (() => {
+              const trend = analyticsData.eyeStrainTrend;
+              const first = trend[0] ?? 50;
+              const last = trend[trend.length - 1] ?? 50;
+              const improving = last < first;
+              const dryEyesPct = analyticsData.symptomFrequency.dryEyes;
+              const topSymptom = Object.entries(analyticsData.symptomFrequency)
+                .sort((a, b) => (b[1] as number) - (a[1] as number))[0];
+              const topSymptomLabel = topSymptom
+                ? topSymptom[0].replace(/([A-Z])/g, ' $1').trim()
+                : null;
 
-            <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
-              <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
-                ⚠ Area of Concern
-              </p>
-              <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-2">
-                Dry eyes are reported in 78% of your logs. Consider using eye drops and increasing
-                humidity in your workspace.
-              </p>
-            </div>
+              return (
+                <>
+                  <div className={`p-4 rounded-lg border ${improving ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800'}`}>
+                    <p className={`text-sm font-semibold ${improving ? 'text-green-900 dark:text-green-100' : 'text-yellow-900 dark:text-yellow-100'}`}>
+                      {improving ? '✓ Improving Trend' : '⚠ Worsening Trend'}
+                    </p>
+                    <p className={`text-sm mt-2 ${improving ? 'text-green-800 dark:text-green-200' : 'text-yellow-800 dark:text-yellow-200'}`}>
+                      {improving
+                        ? 'Your risk level has improved compared to your earliest logged entry. Keep up the good habits.'
+                        : 'Your risk level has increased compared to your earliest logged entry. Consider reducing screen time and taking more breaks.'}
+                    </p>
+                  </div>
 
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                💡 Recommendation
-              </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                Based on your patterns, we recommend taking breaks between 14:00-16:00 when your
-                fatigue index peaks.
-              </p>
-            </div>
+                  {topSymptomLabel && (topSymptom[1] as number) > 0 && (
+                    <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                        ⚠ Most Frequent Symptom
+                      </p>
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-2">
+                        {topSymptomLabel} appears in {topSymptom[1]}% of your logs.
+                        {topSymptomLabel.toLowerCase().includes('dry') ? ' Consider using lubricating eye drops and a humidifier.' : ''}
+                        {topSymptomLabel.toLowerCase().includes('strain') ? ' Try the 20-20-20 rule and adjust your monitor distance.' : ''}
+                        {topSymptomLabel.toLowerCase().includes('headache') ? ' Check your monitor position and reduce glare.' : ''}
+                        {topSymptomLabel.toLowerCase().includes('blurry') ? ' Take more frequent breaks and consider an eye exam.' : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                      💡 Based on Your Data
+                    </p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
+                      Your average screen time is {analyticsData.averageScreenTime}h/day with {analyticsData.averageBreaks} breaks on average.
+                      {analyticsData.averageScreenTime > 8 ? ' This exceeds the recommended 8-hour limit — consider scheduling more breaks.' : ' This is within a manageable range.'}
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </ChartCard>
       </div>
