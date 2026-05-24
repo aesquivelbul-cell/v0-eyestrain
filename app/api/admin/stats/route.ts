@@ -36,10 +36,12 @@ export async function GET() {
     })
   }
 
-  // Total respondents: distinct user_ids + null user_id rows
+  // Total respondents: distinct registered user_ids + survey rows (null user_id)
   const distinctUserIds = new Set(logs.filter((l) => l.user_id).map((l) => l.user_id))
-  const nullUserIdCount = logs.filter((l) => !l.user_id).length
-  const totalRespondents = distinctUserIds.size + nullUserIdCount
+  const surveyRowCount = logs.filter((l) => !l.user_id).length
+  const totalRespondents = distinctUserIds.size + surveyRowCount
+  const registeredUserCount = distinctUserIds.size
+  const surveyRespondentCount = surveyRowCount
 
   // Risk distribution
   const riskCounts: Record<string, number> = { Low: 0, Moderate: 0, High: 0, Critical: 0 }
@@ -76,5 +78,5 @@ export async function GET() {
   symptomCounts.sort((a, b) => b.count - a.count)
   const topSymptoms = symptomCounts.slice(0, 2)
 
-  return NextResponse.json({ totalRespondents, riskDistribution, averageScreenTime, topSymptoms })
+  return NextResponse.json({ totalRespondents, registeredUserCount, surveyRespondentCount, riskDistribution, averageScreenTime, topSymptoms })
 }

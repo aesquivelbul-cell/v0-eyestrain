@@ -18,6 +18,9 @@ interface UserRow {
 const RISK_LEVELS = ['All', 'Low', 'Moderate', 'High', 'Critical'] as const
 type RiskFilter = (typeof RISK_LEVELS)[number]
 
+const SOURCE_OPTIONS = ['All', 'Registered', 'Survey'] as const
+type SourceFilter = (typeof SOURCE_OPTIONS)[number]
+
 const FIELD_OPTIONS = ['All', 'IT / Computer Science', 'Engineering', 'Business', 'Health Sciences', 'Education', 'Arts and Humanities', 'Other'] as const
 type FieldFilter = (typeof FIELD_OPTIONS)[number]
 
@@ -48,6 +51,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('All')
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('All')
   const [fieldFilter, setFieldFilter] = useState<FieldFilter>('All')
   const [yearFilter, setYearFilter] = useState<YearFilter>('All')
   const [page, setPage] = useState(1)
@@ -57,7 +61,7 @@ export default function AdminUsersPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [riskFilter, fieldFilter, yearFilter])
+  useEffect(() => { setPage(1) }, [riskFilter, sourceFilter, fieldFilter, yearFilter])
 
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError('')
@@ -78,13 +82,17 @@ export default function AdminUsersPage() {
     return counts
   }, [allUsers])
 
+  const registeredCount = useMemo(() => allUsers.filter((u) => u.userId).length, [allUsers])
+  const surveyCount = useMemo(() => allUsers.filter((u) => !u.userId).length, [allUsers])
+
   const filteredUsers = useMemo(() => allUsers.filter((u) => {
     const matchesSearch = !debouncedSearch || u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
     const matchesRisk = riskFilter === 'All' || u.lastRiskLevel === riskFilter
+    const matchesSource = sourceFilter === 'All' || (sourceFilter === 'Registered' ? !!u.userId : !u.userId)
     const matchesField = fieldFilter === 'All' || u.fieldOfStudy === fieldFilter
     const matchesYear = yearFilter === 'All' || u.yearLevel === yearFilter
-    return matchesSearch && matchesRisk && matchesField && matchesYear
-  }), [allUsers, debouncedSearch, riskFilter, fieldFilter, yearFilter])
+    return matchesSearch && matchesRisk && matchesSource && matchesField && matchesYear
+  }), [allUsers, debouncedSearch, riskFilter, sourceFilter, fieldFilter, yearFilter])
 
   const totalCount = filteredUsers.length
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
@@ -99,7 +107,7 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Respondents</h1>
-        <p className="text-muted-foreground mt-1">All users and survey respondents</p>
+        <p className="text-muted-foreground mt-1">All users and survey respondents — rows without a user account are imported survey data</p>
       </div>
 
       {/* Search + Risk filter */}
@@ -107,6 +115,14 @@ export default function AdminUsersPage() {
         <div className="relative max-w-sm flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input type="search" placeholder="Search by email…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search respondents by email" className="w-full pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="source-filter" className="text-sm text-muted-foreground whitespace-nowrap">Source:</label>
+          <select id="source-filter" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value as SourceFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="All">All</option>
+            <option value="Registered">Registered users</option>
+            <option value="Survey">Survey only</option>
+          </select>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="risk-filter" className="text-sm text-muted-foreground whitespace-nowrap">Risk Level:</label>
@@ -133,6 +149,20 @@ export default function AdminUsersPage() {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <button onClick={() => setRiskFilter('All')} className={`px-3 py-1 rounded-full border transition-colors ${riskFilter === 'All' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:bg-muted'}`} aria-pressed={riskFilter === 'All'}>
             Total: {allUsers.length}
+          </button>
+          <button
+            onClick={() => setSourceFilter((prev) => prev === 'Registered' ? 'All' : 'Registered')}
+            className={`px-3 py-1 rounded-full border transition-colors text-xs font-medium ${sourceFilter === 'Registered' ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-muted-foreground hover:bg-muted'}`}
+            aria-pressed={sourceFilter === 'Registered'}
+          >
+            Registered: {registeredCount}
+          </button>
+          <button
+            onClick={() => setSourceFilter((prev) => prev === 'Survey' ? 'All' : 'Survey')}
+            className={`px-3 py-1 rounded-full border transition-colors text-xs font-medium ${sourceFilter === 'Survey' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:bg-muted'}`}
+            aria-pressed={sourceFilter === 'Survey'}
+          >
+            Survey: {surveyCount}
           </button>
           {(['Low', 'Moderate', 'High', 'Critical'] as const).map((level) => (
             <button key={level} onClick={() => setRiskFilter((prev) => prev === level ? 'All' : level)} className={`px-3 py-1 rounded-full border transition-colors font-medium ${riskFilter === level ? 'ring-2 ring-offset-1 ring-current ' + riskBadgeColors[level] : riskBadgeColors[level] + ' border-transparent'}`} aria-pressed={riskFilter === level}>
@@ -168,7 +198,14 @@ export default function AdminUsersPage() {
               ) : (
                 pageUsers.map((user, idx) => (
                   <tr key={user.userId ?? `${user.email}-${idx}`} onClick={() => handleRowClick(user.userId, user.email)} className="border-t border-border hover:bg-muted/50 cursor-pointer transition-colors" tabIndex={0} role="button" aria-label={`View details for ${user.email}`} onKeyDown={(e) => e.key === 'Enter' && handleRowClick(user.userId, user.email)}>
-                    <td className="px-4 py-3 text-foreground">{user.email || '—'}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      <div className="flex items-center gap-2">
+                        {user.email || '—'}
+                        {!user.userId && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">survey</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{user.age ?? '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.gender ?? '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.yearLevel ?? '—'}</td>

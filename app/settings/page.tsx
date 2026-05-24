@@ -1,18 +1,48 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Eye, LogOut } from 'lucide-react';
+import { Save, Eye, LogOut, KeyRound, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
-import { ChartCard } from '@/components/dashboard-card';
-import { InputField, SelectField, Button } from '@/components/form-components';
+import { InputField, SelectField } from '@/components/form-components';
 import { createClient } from '@/lib/supabase/client';
+
+// ─── Inline status banner ────────────────────────────────────────────────────
+function StatusBanner({ message }: { message: string }) {
+  if (!message) return null;
+  const isSuccess = message.toLowerCase().includes('success') || message.toLowerCase().includes('sent') || message.toLowerCase().includes('accepted') || message.toLowerCase().includes('reset');
+  return (
+    <div className={`flex items-start gap-3 p-4 rounded-xl border text-sm font-medium ${
+      isSuccess
+        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+        : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+    }`}>
+      {isSuccess
+        ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        : <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+      <span>{message}</span>
+    </div>
+  );
+}
+
+// ─── Section card ─────────────────────────────────────────────────────────────
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="px-6 py-5 border-b border-border">
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+      </div>
+      <div className="px-6 py-6">{children}</div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
   const supabase = createClient();
-  
+
   const [user, setUser] = useState<any>(null);
   const [settings, setSettings] = useState({
     firstName: '',
@@ -24,6 +54,12 @@ export default function SettingsPage() {
     fieldOfStudy: '',
   });
 
+  // Password change state
+  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
+  const [showPasswords, setShowPasswords] = useState({ current: false, next: false, confirm: false });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -33,19 +69,14 @@ export default function SettingsPage() {
     const loadUserData = async () => {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) {
-          router.push('/login');
-          return;
-        }
+        if (!authUser) { router.push('/login'); return; }
 
         setUser(authUser);
         setSettings((prev) => ({ ...prev, email: authUser.email || '' }));
 
-        // Load consent preference from localStorage
         const consentStored = localStorage.getItem('eyeguard_research_consent');
         setConsentEnabled(consentStored === 'accepted');
 
-        // Load user profile from database
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('*')
@@ -69,19 +100,12 @@ export default function SettingsPage() {
         setIsLoading(false);
       }
     };
-
     loadUserData();
   }, [supabase, router]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    setSettings((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSettings((prev) => ({ ...prev, [name]: value }));
     setMessage('');
   };
 
@@ -89,7 +113,6 @@ export default function SettingsPage() {
     if (!user) return;
     setIsSaving(true);
     setMessage('');
-
     try {
       const { error } = await supabase.from('user_profiles').upsert({
         user_id: user.id,
@@ -103,39 +126,65 @@ export default function SettingsPage() {
       }, { onConflict: 'user_id' });
 
       if (error) {
-        console.error('Supabase upsert error:', error);
         setMessage(`Error: ${error.message}`);
       } else {
-        setMessage('Settings saved successfully!');
+        setMessage('Profile saved successfully!');
         setTimeout(() => setMessage(''), 5000);
       }
-    } catch (error) {
-      console.error('Error saving settings:', error);
+    } catch {
       setMessage('Error saving settings. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-    } catch (err) {
-      console.error('Logout error:', err);
+  const handleChangePassword = async () => {
+    setPasswordMessage('');
+    if (!passwords.next || !passwords.confirm) {
+      setPasswordMessage('Please fill in all password fields.');
+      return;
     }
+    if (passwords.next.length < 8) {
+      setPasswordMessage('New password must be at least 8 characters.');
+      return;
+    }
+    if (passwords.next !== passwords.confirm) {
+      setPasswordMessage('New passwords do not match.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: passwords.next });
+      if (error) {
+        setPasswordMessage(`Error: ${error.message}`);
+      } else {
+        setPasswordMessage('Password changed successfully!');
+        setPasswords({ current: '', next: '', confirm: '' });
+        setTimeout(() => setPasswordMessage(''), 6000);
+      }
+    } catch {
+      setPasswordMessage('Failed to change password. Please try again.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
   if (isLoading) {
     return (
       <AuthGuard>
         <MainLayout>
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center space-y-4">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center space-y-3">
               <div className="inline-block p-4 bg-muted rounded-full">
-                <Eye className="w-8 h-8 text-primary animate-pulse" />
+                <Eye className="w-7 h-7 text-primary animate-pulse" />
               </div>
-              <p className="text-lg text-muted-foreground">Loading settings...</p>
+              <p className="text-muted-foreground">Loading settings…</p>
             </div>
           </div>
         </MainLayout>
@@ -146,55 +195,33 @@ export default function SettingsPage() {
   return (
     <AuthGuard>
       <MainLayout>
-        <div className="space-y-8 max-w-4xl">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="max-w-2xl space-y-6">
+
+          {/* Page header */}
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Settings</h1>
-              <p className="text-muted-foreground mt-2">Manage your account and preferences</p>
+              <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+              <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>
             </div>
-            <Button
-              variant="ghost"
-              size="lg"
+            <button
               onClick={handleLogout}
-              className="flex items-center justify-center gap-2 text-destructive hover:bg-destructive/10"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Logout
-            </Button>
+            </button>
           </div>
 
-          {/* Status Message */}
-          {message && (
-            <div className={`p-4 rounded-lg border ${
-              message.includes('successfully')
-                ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-100'
-                : 'bg-destructive/10 border-destructive/20 text-destructive'
-            }`}>
-              <p className="text-sm font-medium">{message}</p>
-            </div>
-          )}
+          {/* Global status */}
+          <StatusBanner message={message} />
 
-          {/* Profile Section */}
-          <ChartCard title="Profile Information">
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputField
-                  label="First Name"
-                  name="firstName"
-                  value={settings.firstName}
-                  onChange={handleChange}
-                  placeholder="John"
-                />
-                <InputField
-                  label="Last Name"
-                  name="lastName"
-                  value={settings.lastName}
-                  onChange={handleChange}
-                  placeholder="Doe"
-                />
+          {/* ── Profile Information ── */}
+          <Section title="Profile Information" description="Your personal details shown across the app">
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InputField label="First Name" name="firstName" value={settings.firstName} onChange={handleChange} placeholder="John" />
+                <InputField label="Last Name" name="lastName" value={settings.lastName} onChange={handleChange} placeholder="Doe" />
               </div>
-
               <InputField
                 label="Email Address"
                 name="email"
@@ -203,31 +230,21 @@ export default function SettingsPage() {
                 disabled
                 helperText="Email cannot be changed here"
               />
-
-              <InputField
-                label="Age"
-                name="age"
-                type="number"
-                min="13"
-                max="120"
-                value={settings.age}
-                onChange={handleChange}
-                placeholder="22"
-              />
+              <InputField label="Age" name="age" type="number" min="13" max="120" value={settings.age} onChange={handleChange} placeholder="22" />
             </div>
-          </ChartCard>
+          </Section>
 
-          {/* Health Profile Section */}
-          <ChartCard title="Health & Academic Profile">
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* ── Health & Academic Profile ── */}
+          <Section title="Health & Academic Profile" description="Used to personalise your risk analysis">
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   label="Gender"
                   name="gender"
                   value={settings.gender}
                   onChange={handleChange}
                   options={[
-                    { value: '', label: 'Select...' },
+                    { value: '', label: 'Select…' },
                     { value: 'Male', label: 'Male' },
                     { value: 'Female', label: 'Female' },
                     { value: 'Other', label: 'Other' },
@@ -240,7 +257,7 @@ export default function SettingsPage() {
                   value={settings.yearLevel}
                   onChange={handleChange}
                   options={[
-                    { value: '', label: 'Select...' },
+                    { value: '', label: 'Select…' },
                     { value: '1st Year', label: '1st Year' },
                     { value: '2nd Year', label: '2nd Year' },
                     { value: '3rd Year', label: '3rd Year' },
@@ -249,14 +266,13 @@ export default function SettingsPage() {
                   ]}
                 />
               </div>
-
               <SelectField
                 label="Field of Study"
                 name="fieldOfStudy"
                 value={settings.fieldOfStudy}
                 onChange={handleChange}
                 options={[
-                  { value: '', label: 'Select...' },
+                  { value: '', label: 'Select…' },
                   { value: 'IT / Computer Science', label: 'IT / Computer Science' },
                   { value: 'Engineering', label: 'Engineering' },
                   { value: 'Business', label: 'Business' },
@@ -267,63 +283,133 @@ export default function SettingsPage() {
                 ]}
               />
             </div>
-          </ChartCard>
 
-          {/* Privacy Section */}
-          <div className="flex justify-end">
-            <Button variant="primary" size="lg" onClick={handleSave} isLoading={isSaving}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Settings
-            </Button>
-          </div>
-
-          {/* Privacy Section */}
-          <ChartCard title="Privacy">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Research Consent Notice</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <strong>ON</strong> = you have agreed, consent notice won't appear.<br/>
-                    <strong>OFF</strong> = consent notice will show again next time you visit the Daily Log.
-                  </p>
-                </div>
-                <button
-                  role="switch"
-                  aria-checked={consentEnabled}
-                  onClick={() => {
-                    const next = !consentEnabled;
-                    setConsentEnabled(next);
-                    if (next) {
-                      // ON: mark as accepted — skip the modal
-                      localStorage.setItem('eyeguard_research_consent', 'accepted');
-                      setMessage('Consent accepted. The notice will no longer appear.');
-                    } else {
-                      // OFF: clear consent — modal will show again on next Daily Log visit
-                      localStorage.removeItem('eyeguard_research_consent');
-                      setMessage('Consent reset. The notice will appear again on your next Daily Log visit.');
-                    }
-                    setTimeout(() => setMessage(''), 4000);
-                  }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                    consentEnabled ? 'bg-primary' : 'bg-muted'
-                  }`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    consentEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`} />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Turn this OFF to see the consent notice again the next time you visit the Daily Log page.
-              </p>
+            {/* Save button lives inside the profile sections */}
+            <div className="mt-6 pt-5 border-t border-border flex justify-end">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSaving ? (
+                  <span className="w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isSaving ? 'Saving…' : 'Save Profile'}
+              </button>
             </div>
-          </ChartCard>
+          </Section>
 
-          {/* About Section */}
-          <ChartCard title="About EyeGuard">
+          {/* ── Change Password ── */}
+          <Section title="Change Password" description="Choose a strong password of at least 8 characters">
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-border">
+              <StatusBanner message={passwordMessage} />
+
+              {/* New password */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.next ? 'text' : 'password'}
+                    value={passwords.next}
+                    onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))}
+                    placeholder="Min. 8 characters"
+                    className="w-full pr-10 px-3 py-2.5 border border-border rounded-xl bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords((s) => ({ ...s, next: !s.next }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPasswords.next ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm password */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.confirm ? 'text' : 'password'}
+                    value={passwords.confirm}
+                    onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))}
+                    placeholder="Repeat new password"
+                    className="w-full pr-10 px-3 py-2.5 border border-border rounded-xl bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {passwords.confirm && passwords.next !== passwords.confirm && (
+                  <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-border flex justify-end">
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword || !passwords.next || !passwords.confirm}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {isChangingPassword ? (
+                  <span className="w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
+                ) : (
+                  <KeyRound className="w-4 h-4" />
+                )}
+                {isChangingPassword ? 'Updating…' : 'Update Password'}
+              </button>
+            </div>
+          </Section>
+
+          {/* ── Privacy ── */}
+          <Section title="Privacy">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Research Consent Notice</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <strong>ON</strong> — consent given, notice won't appear again.<br />
+                  <strong>OFF</strong> — notice will show next time you visit Daily Log.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={consentEnabled}
+                onClick={() => {
+                  const next = !consentEnabled;
+                  setConsentEnabled(next);
+                  if (next) {
+                    localStorage.setItem('eyeguard_research_consent', 'accepted');
+                    setMessage('Consent accepted. The notice will no longer appear.');
+                  } else {
+                    localStorage.removeItem('eyeguard_research_consent');
+                    setMessage('Consent reset. The notice will appear again on your next Daily Log visit.');
+                  }
+                  setTimeout(() => setMessage(''), 4000);
+                }}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                  consentEnabled ? 'bg-primary' : 'bg-muted'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  consentEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </Section>
+
+          {/* ── About ── */}
+          <Section title="About EyeGuard">
+            <div className="divide-y divide-border">
+              <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-muted-foreground">Version</span>
                 <span className="text-sm font-semibold text-foreground">1.0.0</span>
               </div>
@@ -332,7 +418,8 @@ export default function SettingsPage() {
                 <span className="text-sm font-semibold text-foreground">May 2026</span>
               </div>
             </div>
-          </ChartCard>
+          </Section>
+
         </div>
       </MainLayout>
     </AuthGuard>
