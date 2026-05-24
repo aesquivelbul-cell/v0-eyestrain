@@ -19,6 +19,7 @@ supabase>=2.3.4
 # Utilities
 Werkzeug==2.3.7
 requests==2.31.0
+APScheduler==3.10.4
 
 # Development
 pytest==7.4.0

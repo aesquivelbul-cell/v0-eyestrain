@@ -43,10 +43,7 @@ def _retrain_in_background(app):
 
 
 def trigger_retrain_if_needed(app):
-    """
-    Increment the new-log counter and kick off a background retrain
-    once RETRAIN_EVERY_N_LOGS new logs have been submitted.
-    """
+    """Increment counter and kick off background retrain when threshold is reached."""
     global _new_logs_since_retrain
     _new_logs_since_retrain += 1
     if _new_logs_since_retrain >= RETRAIN_EVERY_N_LOGS:
@@ -57,9 +54,9 @@ def trigger_retrain_if_needed(app):
 def create_app(config_name='development'):
     """Application factory function"""
     global ml_predictor, predictor_manager
-    
+
     app = Flask(__name__)
-    
+
     # Load configuration
     if config_name == 'production':
         from config import ProductionConfig
@@ -67,51 +64,35 @@ def create_app(config_name='development'):
     else:
         from config import DevelopmentConfig
         app.config.from_object(DevelopmentConfig)
-    
-    # Initialize extensions with app
+
+    # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
-    
+
     # Enable CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-    
+
     # Register blueprints
     register_blueprints(app)
 
-    # ── ML retrain endpoint ──────────────────────────────────────────────────
+    # ── ML endpoints ─────────────────────────────────────────────────────────
     @app.route('/api/ml/notify-new-log', methods=['POST'])
     def notify_new_log():
-        """
-        Called by the Next.js API route every time a daily log is saved.
-        Increments the counter and triggers a background retrain when the
-        threshold is reached.
-        """
         trigger_retrain_if_needed(app)
         return jsonify({"success": True})
 
     @app.route('/api/ml/retrain', methods=['POST'])
     def retrain_models():
-        """
-        Manually trigger a model retrain from Supabase data.
-        Protected by a simple API key header: X-Retrain-Key.
-        """
         expected_key = app.config.get("RETRAIN_API_KEY", "")
         provided_key = request.headers.get("X-Retrain-Key", "")
         if expected_key and provided_key != expected_key:
             return jsonify({"success": False, "message": "Unauthorized"}), 401
-
-        t = threading.Thread(
-            target=_retrain_in_background, args=(app,), daemon=True
-        )
+        t = threading.Thread(target=_retrain_in_background, args=(app,), daemon=True)
         t.start()
-        return jsonify({
-            "success": True,
-            "message": "Retrain started in background. Check server logs for progress."
-        })
+        return jsonify({"success": True, "message": "Retrain started in background."})
 
     @app.route('/api/ml/status', methods=['GET'])
     def ml_status():
-        """Return current ML model status and training data count."""
         from ml.supabase_loader import count_training_rows
         row_count = count_training_rows()
         return jsonify({
@@ -120,22 +101,18 @@ def create_app(config_name='development'):
             "new_logs_since_retrain": _new_logs_since_retrain,
             "retrain_threshold": RETRAIN_EVERY_N_LOGS,
         })
-    # ────────────────────────────────────────────────────────────────────────
-    
-    # Create database tables
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Create database tables and initialize ML models
     with app.app_context():
         db.create_all()
-        
-        # Initialize ML models
         try:
             from ml.storage import get_predictor_manager
             from ml.training import train_production_models
-            
+
             predictor_manager = get_predictor_manager('backend/ml/models')
-            
-            # Try to load existing models
             ml_predictor = predictor_manager.get_predictor()
-            
+
             if ml_predictor is None:
                 print("[ML] No saved models found. Training from Supabase data...")
                 trainer, results = train_production_models()
@@ -143,19 +120,17 @@ def create_app(config_name='development'):
                 print(f"[ML] Initial training complete. Results: {results}")
             else:
                 print("[ML] Loaded existing ML models from disk")
-                # Kick off a background retrain to incorporate any new Supabase data
-                t = threading.Thread(
-                    target=_retrain_in_background, args=(app,), daemon=True
-                )
+                t = threading.Thread(target=_retrain_in_background, args=(app,), daemon=True)
                 t.start()
         except Exception as e:
             print(f"[ML] Error initializing ML models: {e}")
             ml_predictor = None
-    
+
     # Error handlers
     register_error_handlers(app)
-    
+
     return app
+
 
 def register_blueprints(app):
     """Register all API blueprints"""
@@ -164,47 +139,33 @@ def register_blueprints(app):
     from routes.logs import logs_bp
     from routes.predictions import predictions_bp
     from routes.analytics import analytics_bp
-    
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(logs_bp, url_prefix='/api/logs')
     app.register_blueprint(predictions_bp, url_prefix='/api/predictions')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
 
+
 def register_error_handlers(app):
     """Register error handlers"""
     @app.errorhandler(400)
     def bad_request(error):
-        return {
-            'success': False,
-            'message': 'Bad request',
-            'error': str(error)
-        }, 400
-    
+        return {'success': False, 'message': 'Bad request', 'error': str(error)}, 400
+
     @app.errorhandler(401)
     def unauthorized(error):
-        return {
-            'success': False,
-            'message': 'Unauthorized',
-            'error': str(error)
-        }, 401
-    
+        return {'success': False, 'message': 'Unauthorized', 'error': str(error)}, 401
+
     @app.errorhandler(404)
     def not_found(error):
-        return {
-            'success': False,
-            'message': 'Resource not found',
-            'error': str(error)
-        }, 404
-    
+        return {'success': False, 'message': 'Resource not found', 'error': str(error)}, 404
+
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
-        return {
-            'success': False,
-            'message': 'Internal server error',
-            'error': str(error)
-        }, 500
+        return {'success': False, 'message': 'Internal server error', 'error': str(error)}, 500
+
 
 if __name__ == '__main__':
     app = create_app('development')
