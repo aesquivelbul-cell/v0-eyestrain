@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AdminSidebar } from './admin-sidebar';
 import { AdminHeader } from './admin-header';
+import { AdminAiChatBubble } from './admin-ai-chat-bubble';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -30,6 +31,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Global floating AI chat bubble — visible on all admin pages */}
+      <AdminAiChatBubble />
     </div>
   );
 }

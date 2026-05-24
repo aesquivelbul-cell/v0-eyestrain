@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { BarChart3, TrendingUp, Eye, Moon, AlertTriangle } from 'lucide-react'
+import { BarChart3, TrendingUp, Eye, Moon, AlertTriangle, Brain } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
@@ -252,6 +253,28 @@ export default function AdminAnalyticsPage() {
           })()}
         </>
       )}
+
+      {/* AI Analytics Section */}
+      <div className="border-2 border-primary/50 bg-primary/5 rounded-xl p-6">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <Brain className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-foreground">AI Analytics Assistant</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Dive deeper into your data with AI-powered analysis. Ask questions about specific users, identify trends, and get actionable insights.
+            </p>
+            <Link
+              href="/admin/analytics/ai"
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              <Brain className="w-4 h-4" />
+              Launch AI Analytics
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -12,6 +13,8 @@ import {
   TrendingUp,
   AlertCircle,
   ShieldCheck,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { isAdmin } from '@/lib/admin-guard';
@@ -71,6 +74,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -225,6 +229,18 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             <p className="text-xs text-sidebar-foreground/50 truncate">{user.email}</p>
           </div>
         )}
+        <button
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+          <span className="text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
         <button
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
           onClick={handleLogout}

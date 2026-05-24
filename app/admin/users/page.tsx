@@ -18,6 +18,12 @@ interface UserRow {
 const RISK_LEVELS = ['All', 'Low', 'Moderate', 'High', 'Critical'] as const
 type RiskFilter = (typeof RISK_LEVELS)[number]
 
+const FIELD_OPTIONS = ['All', 'IT / Computer Science', 'Engineering', 'Business', 'Health Sciences', 'Education', 'Arts and Humanities', 'Other'] as const
+type FieldFilter = (typeof FIELD_OPTIONS)[number]
+
+const YEAR_OPTIONS = ['All', '1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year or higher'] as const
+type YearFilter = (typeof YEAR_OPTIONS)[number]
+
 const riskColors: Record<string, string> = {
   Low: 'text-green-600',
   Moderate: 'text-yellow-600',
@@ -42,6 +48,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('All')
+  const [fieldFilter, setFieldFilter] = useState<FieldFilter>('All')
+  const [yearFilter, setYearFilter] = useState<YearFilter>('All')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
@@ -49,7 +57,7 @@ export default function AdminUsersPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [riskFilter])
+  useEffect(() => { setPage(1) }, [riskFilter, fieldFilter, yearFilter])
 
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError('')
@@ -73,8 +81,10 @@ export default function AdminUsersPage() {
   const filteredUsers = useMemo(() => allUsers.filter((u) => {
     const matchesSearch = !debouncedSearch || u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
     const matchesRisk = riskFilter === 'All' || u.lastRiskLevel === riskFilter
-    return matchesSearch && matchesRisk
-  }), [allUsers, debouncedSearch, riskFilter])
+    const matchesField = fieldFilter === 'All' || u.fieldOfStudy === fieldFilter
+    const matchesYear = yearFilter === 'All' || u.yearLevel === yearFilter
+    return matchesSearch && matchesRisk && matchesField && matchesYear
+  }), [allUsers, debouncedSearch, riskFilter, fieldFilter, yearFilter])
 
   const totalCount = filteredUsers.length
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
@@ -102,6 +112,18 @@ export default function AdminUsersPage() {
           <label htmlFor="risk-filter" className="text-sm text-muted-foreground whitespace-nowrap">Risk Level:</label>
           <select id="risk-filter" value={riskFilter} onChange={(e) => setRiskFilter(e.target.value as RiskFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
             {RISK_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="field-filter" className="text-sm text-muted-foreground whitespace-nowrap">Field:</label>
+          <select id="field-filter" value={fieldFilter} onChange={(e) => setFieldFilter(e.target.value as FieldFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            {FIELD_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="year-filter" className="text-sm text-muted-foreground whitespace-nowrap">Year:</label>
+          <select id="year-filter" value={yearFilter} onChange={(e) => setYearFilter(e.target.value as YearFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>

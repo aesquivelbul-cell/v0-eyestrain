@@ -8,6 +8,7 @@ import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
 import { AiChat } from '@/components/ai-chat';
+import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function DashboardPage() {
   const [allLogs, setAllLogs] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [streak, setStreak] = useState(0);
+  const [groupAvg, setGroupAvg] = useState<any>(null);
+  const [riskHistory, setRiskHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -87,6 +90,20 @@ export default function DashboardPage() {
             }
           }
           setStreak(currentStreak);
+
+          // Fetch group averages for comparison
+          fetch('/api/stats/averages').then(r => r.json()).then(setGroupAvg).catch(() => {});
+
+          // Fetch last 7 predictions for risk history sparkline
+          const { data: recentPreds } = await supabase
+            .from('predictions')
+            .select('risk_percentage, created_at')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: true })
+            .limit(7);
+          if (recentPreds) {
+            setRiskHistory(recentPreds.map((p: any) => ({ value: p.risk_percentage ?? 0 })));
+          }
 
           // Fetch latest prediction
           const { data: predictions } = await supabase
@@ -409,6 +426,62 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Comparison + Risk History */}
+            {(groupAvg || riskHistory.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Group Comparison */}
+                {groupAvg && analytics && (
+                  <div className="border border-border rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">📊 How You Compare</h3>
+                    <p className="text-xs text-muted-foreground mb-4">vs. average of {groupAvg.totalRespondents} respondents</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Screen Time', yours: parseFloat(analytics.averageScreenTime), avg: groupAvg.avgScreenTime, unit: 'h', lowerIsBetter: true },
+                        { label: 'Sleep Hours', yours: parseFloat(analytics.averageSleepHours), avg: groupAvg.avgSleepHours, unit: 'h', lowerIsBetter: false },
+                        { label: 'Brightness', yours: parseInt(analytics.averageBrightness), avg: groupAvg.avgBrightness, unit: '%', lowerIsBetter: false, optimal: 70 },
+                      ].map(({ label, yours, avg, unit, lowerIsBetter, optimal }) => {
+                        const better = optimal
+                          ? Math.abs(yours - optimal) <= Math.abs(avg - optimal)
+                          : lowerIsBetter ? yours <= avg : yours >= avg;
+                        return (
+                          <div key={label} className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-muted-foreground w-24">{label}</span>
+                            <div className="flex items-center gap-2 flex-1">
+                              <span className={`text-sm font-semibold ${better ? 'text-green-600' : 'text-orange-600'}`}>
+                                You: {yours}{unit}
+                              </span>
+                              <span className="text-xs text-muted-foreground">vs Avg: {avg}{unit}</span>
+                              <span className="text-xs">{better ? '✓' : '↑'}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Risk History Sparkline */}
+                {riskHistory.length > 1 && (
+                  <div className="border border-border rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-1">📉 Risk History</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Last {riskHistory.length} submissions</p>
+                    <div className="h-28">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={riskHistory}>
+                          <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Risk']} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: '12px' }} />
+                          <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={2} dot={{ r: 3, fill: '#ef4444' }} activeDot={{ r: 5 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                      <span>Earliest</span>
+                      <span>Latest: {riskHistory[riskHistory.length - 1]?.value?.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

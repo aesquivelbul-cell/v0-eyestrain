@@ -1,89 +1,184 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle2, CalendarCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ScreenTimeForm } from '@/components/screen-time-form';
+import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/form-components';
+
+const CONSENT_KEY = 'eyeguard_research_consent';
 
 export default function DailyLogPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alreadyLoggedToday, setAlreadyLoggedToday] = useState(false);
+  const [checkingLog, setCheckingLog] = useState(true);
+  // null = loading, true = show modal, false = skip modal
+  const [showConsent, setShowConsent] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check localStorage for consent preference
+    const stored = localStorage.getItem(CONSENT_KEY);
+    // Show modal if user hasn't accepted yet (null or anything other than 'accepted')
+    setShowConsent(stored !== 'accepted');
+
+    const checkTodayLog = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await supabase
+          .from('daily_logs')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .limit(1);
+        setAlreadyLoggedToday(!!(data && data.length > 0));
+      } catch { /* non-fatal */ }
+      finally { setCheckingLog(false); }
+    };
+    checkTodayLog();
+  }, [supabase]);
+
+  const handleConsent = () => {
+    localStorage.setItem(CONSENT_KEY, 'accepted');
+    setShowConsent(false);
+  };
+
+  const handleDecline = () => {
+    // Just dismiss — don't redirect into a loop
+    // New users without data will stay on this page but can use the form
+    setShowConsent(false);
+  };
 
   const handleFormSubmit = async (formData: any) => {
     try {
       setError('');
       setSuccess(false);
       setIsSubmitting(true);
-
       const response = await fetch('/api/predict-supabase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to save daily log');
       }
-
       setSuccess(true);
-      // Redirect to dashboard after 2 seconds
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
+      setAlreadyLoggedToday(true);
+      setTimeout(() => router.push('/dashboard'), 2000);
     } catch (err) {
       setIsSubmitting(false);
-      const message = err instanceof Error ? err.message : 'Failed to save daily log';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Failed to save daily log');
     }
   };
 
   return (
     <AuthGuard>
       <MainLayout>
-        <div className="space-y-8 max-w-4xl">
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Daily Eye Health Log</h1>
-            <p className="text-muted-foreground mt-2">
-              Record your daily screen time and symptoms to improve predictions
-            </p>
-          </div>
+        {/* Consent Modal */}
+        {showConsent === true && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Research Participation Notice</h2>
+              </div>
 
-          {/* Info Box */}
-          <div className="flex items-start gap-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                Why log daily data?
-              </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
-                Regular data entries help our AI model better understand your eye strain patterns and
-                provide more accurate risk predictions and personalized recommendations.
-              </p>
+              <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+                <p>Before you proceed, please read the following:</p>
+                <ul className="space-y-2 list-none">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary font-bold mt-0.5">•</span>
+                    <span>This survey collects personal health data for <strong className="text-foreground">academic research</strong> on digital eye strain among students.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary font-bold mt-0.5">•</span>
+                    <span>Your participation is <strong className="text-foreground">voluntary</strong>. You may stop at any time.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary font-bold mt-0.5">•</span>
+                    <span>Your data is kept <strong className="text-foreground">confidential</strong> and will not be shared publicly.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary font-bold mt-0.5">•</span>
+                    <span>Data is used solely to <strong className="text-foreground">improve the ML model</strong> and provide personalized eye health recommendations.</span>
+                  </li>
+                </ul>
+                <p className="text-xs text-muted-foreground border-t border-border pt-4">
+                  By clicking "I Agree", you consent to the collection and use of your data as described above.
+                  You can turn off this notice anytime in <strong className="text-foreground">Settings → Privacy</strong>.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleConsent}
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  I Agree &amp; Continue
+                </button>
+                <button
+                  onClick={handleDecline}
+                  className="flex-1 px-6 py-3 border border-border text-muted-foreground text-sm font-medium rounded-xl hover:bg-muted transition-colors"
+                >
+                  Skip for Now
+                </button>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Status Messages */}
+        <div className="space-y-8 max-w-4xl">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Daily Eye Health Log</h1>
+            <p className="text-muted-foreground mt-2">Record your daily screen time and symptoms to improve predictions</p>
+          </div>
+
+          {!checkingLog && alreadyLoggedToday && !success && (
+            <div className="flex items-start gap-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+              <CalendarCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">You already logged today</p>
+                <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">Submitting again will update your entry for today.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')} className="flex-shrink-0">View Dashboard</Button>
+            </div>
+          )}
+
+          {!alreadyLoggedToday && (
+            <div className="flex items-start gap-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">Why log daily data?</p>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">Regular data entries help our AI model better understand your eye strain patterns and provide more accurate risk predictions and personalized recommendations.</p>
+              </div>
+            </div>
+          )}
+
           {error && (
-            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-sm text-destructive font-medium">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-              <p className="text-sm text-green-700 dark:text-green-100 font-medium">
-                Daily log saved successfully! View your prediction on the dashboard.
-              </p>
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-700 dark:text-green-100 font-medium">Daily log saved successfully! Redirecting to your dashboard…</p>
             </div>
           )}
 
-          {/* Form */}
           <div className="bg-card rounded-xl border border-border p-6">
             <ScreenTimeForm onSubmit={handleFormSubmit} />
           </div>

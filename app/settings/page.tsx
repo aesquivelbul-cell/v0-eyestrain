@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Lock, Bell, Eye, LogOut } from 'lucide-react';
+import { Save, Eye, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/main-layout';
 import { AuthGuard } from '@/components/auth-guard';
 import { ChartCard } from '@/components/dashboard-card';
-import { InputField, SelectField, ToggleSwitch, Button } from '@/components/form-components';
+import { InputField, SelectField, Button } from '@/components/form-components';
 import { createClient } from '@/lib/supabase/client';
 
 export default function SettingsPage() {
@@ -22,14 +22,12 @@ export default function SettingsPage() {
     gender: '',
     yearLevel: '',
     fieldOfStudy: '',
-    notificationsEnabled: true,
-    emailAlerts: true,
-    reminderTime: '09:00',
   });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [consentEnabled, setConsentEnabled] = useState(true);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -42,6 +40,10 @@ export default function SettingsPage() {
 
         setUser(authUser);
         setSettings((prev) => ({ ...prev, email: authUser.email || '' }));
+
+        // Load consent preference from localStorage
+        const consentStored = localStorage.getItem('eyeguard_research_consent');
+        setConsentEnabled(consentStored === 'accepted');
 
         // Load user profile from database
         const { data: profile } = await supabase
@@ -59,22 +61,6 @@ export default function SettingsPage() {
             gender: profile.gender || '',
             yearLevel: profile.year_level || '',
             fieldOfStudy: profile.field_of_study || '',
-          }));
-        }
-
-        // Load user settings
-        const { data: userSettings } = await supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single();
-
-        if (userSettings) {
-          setSettings((prev) => ({
-            ...prev,
-            notificationsEnabled: userSettings.enable_email_notifications,
-            emailAlerts: userSettings.enable_daily_reminders,
-            reminderTime: userSettings.reminder_time || '09:00',
           }));
         }
       } catch (err) {
@@ -105,8 +91,7 @@ export default function SettingsPage() {
     setMessage('');
 
     try {
-      // Update or create user profile
-      await supabase.from('user_profiles').upsert({
+      const { error } = await supabase.from('user_profiles').upsert({
         user_id: user.id,
         first_name: settings.firstName,
         last_name: settings.lastName,
@@ -114,18 +99,16 @@ export default function SettingsPage() {
         gender: settings.gender,
         year_level: settings.yearLevel,
         field_of_study: settings.fieldOfStudy,
-      });
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
 
-      // Update or create user settings
-      await supabase.from('user_settings').upsert({
-        user_id: user.id,
-        enable_email_notifications: settings.notificationsEnabled,
-        enable_daily_reminders: settings.emailAlerts,
-        reminder_time: settings.reminderTime,
-      });
-
-      setMessage('Settings saved successfully!');
-      setTimeout(() => setMessage(''), 5000);
+      if (error) {
+        console.error('Supabase upsert error:', error);
+        setMessage(`Error: ${error.message}`);
+      } else {
+        setMessage('Settings saved successfully!');
+        setTimeout(() => setMessage(''), 5000);
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
       setMessage('Error saving settings. Please try again.');
@@ -286,43 +269,54 @@ export default function SettingsPage() {
             </div>
           </ChartCard>
 
-          {/* Notification Settings */}
-          <ChartCard title="Notification Settings">
-            <div className="space-y-6">
-              <ToggleSwitch
-                label="Enable Email Notifications"
-                name="notificationsEnabled"
-                checked={settings.notificationsEnabled}
-                onChange={handleChange}
-              />
+          {/* Privacy Section */}
+          <div className="flex justify-end">
+            <Button variant="primary" size="lg" onClick={handleSave} isLoading={isSaving}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
+            </Button>
+          </div>
 
-              <ToggleSwitch
-                label="Daily Reminder Emails"
-                name="emailAlerts"
-                checked={settings.emailAlerts}
-                onChange={handleChange}
-              />
-
-              {settings.emailAlerts && (
-                <InputField
-                  label="Reminder Time"
-                  name="reminderTime"
-                  type="time"
-                  value={settings.reminderTime}
-                  onChange={handleChange}
-                />
-              )}
-
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={handleSave}
-                isLoading={isSaving}
-                className="w-full"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Settings
-              </Button>
+          {/* Privacy Section */}
+          <ChartCard title="Privacy">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Research Consent Notice</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <strong>ON</strong> = you have agreed, consent notice won't appear.<br/>
+                    <strong>OFF</strong> = consent notice will show again next time you visit the Daily Log.
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={consentEnabled}
+                  onClick={() => {
+                    const next = !consentEnabled;
+                    setConsentEnabled(next);
+                    if (next) {
+                      // ON: mark as accepted — skip the modal
+                      localStorage.setItem('eyeguard_research_consent', 'accepted');
+                      setMessage('Consent accepted. The notice will no longer appear.');
+                    } else {
+                      // OFF: clear consent — modal will show again on next Daily Log visit
+                      localStorage.removeItem('eyeguard_research_consent');
+                      setMessage('Consent reset. The notice will appear again on your next Daily Log visit.');
+                    }
+                    setTimeout(() => setMessage(''), 4000);
+                  }}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    consentEnabled ? 'bg-primary' : 'bg-muted'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    consentEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Turn this OFF to see the consent notice again the next time you visit the Daily Log page.
+              </p>
             </div>
           </ChartCard>
 
