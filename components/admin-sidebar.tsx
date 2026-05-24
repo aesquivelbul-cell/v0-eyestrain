@@ -115,6 +115,14 @@ export function AdminSidebar({ isOpen }: AdminSidebarProps) {
       {/* Footer */}
       <div className="p-4 border-t border-border space-y-2">
         <button
+          onClick={() => router.push('/dashboard')}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-primary hover:bg-primary/10 transition-colors border border-primary/20"
+          aria-label="Switch to user view"
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-sm font-semibold">Switch to User View</span>
+        </button>
+        <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
           aria-label="Logout"

@@ -1,12 +1,29 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Eye, BarChart3, Zap, Shield } from 'lucide-react';
+import { Eye, Zap, Shield } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useEffect, useState } from 'react';
+
+interface PublicStats {
+  respondents: number;
+  logsRecorded: number;
+  predictionsGenerated: number;
+}
 
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const [stats, setStats] = useState<PublicStats | null>(null);
+
+  useEffect(() => {
+    fetch('/api/public/stats')
+      .then(r => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted flex flex-col">
@@ -94,16 +111,22 @@ export default function Home() {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 py-8 border-y border-border">
             <div>
-              <p className="text-3xl font-bold text-primary">ML</p>
-              <p className="text-sm text-muted-foreground mt-1">Powered Predictions</p>
+              <p className="text-3xl font-bold text-primary">
+                {stats ? fmt(stats.respondents) : '—'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">Respondents Tracked</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-secondary">Real</p>
-              <p className="text-sm text-muted-foreground mt-1">Data-Driven Insights</p>
+              <p className="text-3xl font-bold text-secondary">
+                {stats ? fmt(stats.logsRecorded) : '—'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">Daily Logs Recorded</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-accent">Daily</p>
-              <p className="text-sm text-muted-foreground mt-1">Health Tracking</p>
+              <p className="text-3xl font-bold text-accent">
+                {stats ? fmt(stats.predictionsGenerated) : '—'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">AI Predictions Generated</p>
             </div>
           </div>
         </div>

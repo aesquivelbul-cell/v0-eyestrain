@@ -2,11 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
-import { Eye, AlertCircle, TrendingUp, Clock, RefreshCw, LogOut } from 'lucide-react';
+import { Eye, AlertCircle, TrendingUp, Clock, RefreshCw, LogOut, Flame } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
+import { AiChat } from '@/components/ai-chat';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [hasData, setHasData] = useState(false);
   const [allLogs, setAllLogs] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -69,6 +71,22 @@ export default function DashboardPage() {
         if (logs && logs.length > 0) {
           setHasData(true);
           setAllLogs(logs);
+
+          // Calculate logging streak
+          const logDates = new Set(logs.map((l: any) => l.date));
+          let currentStreak = 0;
+          const checkDate = new Date();
+          checkDate.setHours(0, 0, 0, 0);
+          while (true) {
+            const dateStr = checkDate.toISOString().split('T')[0];
+            if (logDates.has(dateStr)) {
+              currentStreak++;
+              checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+          setStreak(currentStreak);
 
           // Fetch latest prediction
           const { data: predictions } = await supabase
@@ -285,7 +303,7 @@ export default function DashboardPage() {
         {prediction && (
           <div className="space-y-6">
             {/* Risk Level and Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className={`rounded-xl border border-border p-6 ${
                 prediction.risk_level === 0 ? 'bg-green-500/10' :
                 prediction.risk_level === 1 ? 'bg-yellow-500/10' :
@@ -333,6 +351,14 @@ export default function DashboardPage() {
                 value={analytics?.totalLogsRecorded || '0'}
                 description="Logs recorded"
                 icon={<AlertCircle className="w-6 h-6 text-blue-500" />}
+              />
+
+              <MetricCard
+                title="Logging Streak"
+                value={streak}
+                unit={streak === 1 ? ' day' : ' days'}
+                description={streak >= 7 ? '🔥 On fire!' : streak >= 3 ? '⚡ Keep it up!' : 'Log daily to build streak'}
+                icon={<Flame className={`w-6 h-6 ${streak >= 7 ? 'text-orange-500' : streak >= 3 ? 'text-yellow-500' : 'text-muted-foreground'}`} />}
               />
             </div>
 
@@ -421,6 +447,21 @@ export default function DashboardPage() {
                   }
                 )}
               </ul>
+            </div>
+
+            {/* Inline AI Chat */}
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-4">🤖 Ask EyeGuard AI</h3>
+              <AiChat
+                mode="inline"
+                initialMessage={
+                  prediction
+                    ? `Hi ${user?.displayName?.split(' ')[0] || 'there'}! 👋 Based on your latest data, your eye strain risk is ${
+                        ['Low', 'Moderate', 'High', 'Critical'][prediction.risk_level] ?? 'Unknown'
+                      } (${prediction.risk_percentage?.toFixed(1)}%). Ask me anything about your eye health or what you can do to improve it!`
+                    : undefined
+                }
+              />
             </div>
           </div>
         )}

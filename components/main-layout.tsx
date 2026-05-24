@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Sidebar } from './sidebar';
 import { Menu } from 'lucide-react';
+import { AiChat } from './ai-chat';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -43,6 +44,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
         </div>
       </main>
+
+      {/* Global floating AI chat bubble — visible on all pages */}
+      <AiChat mode="bubble" />
     </div>
   );
 }
