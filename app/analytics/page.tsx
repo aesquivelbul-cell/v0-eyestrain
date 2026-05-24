@@ -136,18 +136,40 @@ export default function AnalyticsPage() {
   const handleExport = () => {
     if (filteredLogs.length === 0) return;
     const boolToYesNo = (v: any) => v === 1 || v === true ? 'Yes' : 'No';
+    // Prefix date with a tab to prevent Excel auto-formatting as date
     const formatDate = (d: string) => {
       if (!d) return '';
       const [y, m, day] = d.split('-');
-      return `${m}/${day}/${y}`;
+      return `${m}-${day}-${y}`;
     };
-    const headers = ['Date', 'Screen Time (hours)', 'Sleep Hours', 'Brightness (%)', 'Breaks Taken', 'Eye Strain', 'Headaches', 'Dry Eyes', 'Blurry Vision', 'Risk Level'];
+    const headers = [
+      'Date',
+      'Screen Time (hours)',
+      'Sleep Hours',
+      'Brightness (%)',
+      'Breaks Taken',
+      'Eye Strain',
+      'Headaches',
+      'Dry Eyes',
+      'Blurry Vision',
+      'Risk Level',
+    ];
     const rows = filteredLogs.map((l: any) => [
-      formatDate(l.date), l.screen_time ?? '', l.sleep_hours ?? '', l.brightness ?? '',
-      l.breaks_taken ?? 0, boolToYesNo(l.eye_strain), boolToYesNo(l.headaches),
-      boolToYesNo(l.dry_eyes), boolToYesNo(l.blurry_vision), l.risk_level ?? '',
+      formatDate(l.date),
+      l.screen_time ?? '',
+      l.sleep_hours ?? '',
+      l.brightness ?? '',
+      l.breaks_taken ?? 0,
+      boolToYesNo(l.eye_strain),
+      boolToYesNo(l.headaches),
+      boolToYesNo(l.dry_eyes),
+      boolToYesNo(l.blurry_vision),
+      l.risk_level ?? '',
     ]);
-    const escapeField = (v: any) => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s; };
+    const escapeField = (v: any) => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
     const csv = [headers, ...rows].map(row => row.map(escapeField).join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

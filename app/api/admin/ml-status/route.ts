@@ -27,7 +27,13 @@ export async function GET() {
       return NextResponse.json(body, { status: response.status })
     }
 
-    return NextResponse.json(body)
+    // Map snake_case Flask response to camelCase for the frontend
+    return NextResponse.json({
+      modelLoaded: body.model_loaded ?? false,
+      trainingRows: body.supabase_rows ?? 0,
+      newLogsSinceRetrain: body.new_logs_since_retrain ?? 0,
+      retrainThreshold: body.retrain_threshold ?? 10,
+    })
   } catch {
     return NextResponse.json(
       { error: 'ML backend unavailable', modelLoaded: false },

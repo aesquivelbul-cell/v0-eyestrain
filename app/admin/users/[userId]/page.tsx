@@ -20,7 +20,8 @@ interface DailyLog {
 interface UserProfile {
   first_name?: string
   last_name?: string
-  age?: number
+  email?: string
+  age?: number | string
   gender?: string
   year_level?: string
   field_of_study?: string
@@ -96,9 +97,11 @@ export default function AdminUserDetailPage() {
           <section aria-labelledby="profile-heading" className="border border-border rounded-xl p-6">
             <h2 id="profile-heading" className="text-lg font-semibold text-foreground mb-4">Profile</h2>
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Name</dt>
-                <dd className="font-medium text-foreground mt-0.5">{displayName || '—'}</dd>
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-muted-foreground">Email</dt>
+                <dd className="font-medium text-foreground mt-0.5">
+                  {data.profile?.email ?? decodeURIComponent(userId)}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Age</dt>

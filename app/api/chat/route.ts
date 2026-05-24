@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         // Fetch last 7 daily logs
         const { data: logs } = await supabase
           .from('daily_logs')
-          .select('date, screen_time, sleep_hours, brightness, eye_strain, headaches, blurry_vision, dry_eyes, risk_level, age, gender, year_level, field_of_study')
+          .select('date, screen_time, sleep_hours, brightness, eye_strain, headaches, blurry_vision, dry_eyes, risk_level, age, gender, year_level, field_of_study, notes')
           .eq('user_id', user.id)
           .order('date', { ascending: false })
           .limit(7);
@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
           const eyeStrainDays = logs.filter((l: any) => l.eye_strain === 1).length;
           const headacheDays = logs.filter((l: any) => l.headaches === 1).length;
 
+          // Collect non-empty notes from recent logs
+          const recentNotes = logs
+            .map((l: any) => l.notes?.trim())
+            .filter(Boolean)
+            .slice(0, 3); // last 3 notes max
+
           healthLines = `
 HEALTH DATA (last ${logs.length} logs):
 - Average daily screen time: ${avgScreen} hours
@@ -83,7 +89,8 @@ HEALTH DATA (last ${logs.length} logs):
 - High/Critical risk days: ${highRiskDays}/${logs.length} days
 - Recent risk levels: ${recentRisks.join(', ')}
 ${prediction ? `- Latest risk score: ${(prediction as any).risk_percentage?.toFixed(1)}% (${riskLabels[(prediction as any).risk_level] ?? 'Unknown'})` : ''}
-${prediction ? `- Fatigue score: ${(prediction as any).fatigue_score?.toFixed(1)}/10` : ''}`;
+${prediction ? `- Fatigue score: ${(prediction as any).fatigue_score?.toFixed(1)}/10` : ''}
+${recentNotes.length > 0 ? `- User notes from recent logs:\n${recentNotes.map((n: string) => `  • ${n}`).join('\n')}` : ''}`;
         }
 
         if (profileLines || healthLines) {

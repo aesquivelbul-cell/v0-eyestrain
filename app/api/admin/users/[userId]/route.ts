@@ -50,5 +50,27 @@ export async function GET(
     profile = profileData ?? null
   }
 
+  // Fallback: pull profile fields from the most recent log
+  const latestLog = logs[0]
+  if (!profile) {
+    profile = {
+      email: latestLog.email ?? null,
+      age: latestLog.age ?? null,
+      gender: latestLog.gender ?? null,
+      year_level: latestLog.year_level ?? null,
+      field_of_study: latestLog.field_of_study ?? null,
+    }
+  } else {
+    // Merge: fill any missing profile fields from the log
+    profile = {
+      ...profile,
+      email: profile.email ?? latestLog.email ?? null,
+      age: profile.age ?? latestLog.age ?? null,
+      gender: profile.gender ?? latestLog.gender ?? null,
+      year_level: profile.year_level ?? latestLog.year_level ?? null,
+      field_of_study: profile.field_of_study ?? latestLog.field_of_study ?? null,
+    }
+  }
+
   return NextResponse.json({ profile, logs })
 }

@@ -14,6 +14,7 @@ interface MLStatus {
   modelLoaded: boolean
   trainingRows?: number
   newLogsSinceRetrain?: number
+  retrainThreshold?: number
   error?: string
 }
 
@@ -141,11 +142,11 @@ export default function AdminDashboardPage() {
             {mlStatus.error ? (
               <p role="alert" className="text-destructive">{mlStatus.error}</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Model Loaded</p>
                   <p className={`text-lg font-semibold mt-1 ${mlStatus.modelLoaded ? 'text-green-600' : 'text-red-600'}`}>
-                    {mlStatus.modelLoaded ? 'Yes' : 'No'}
+                    {mlStatus.modelLoaded ? 'Yes ✓' : 'No'}
                   </p>
                 </div>
                 <div>
@@ -158,6 +159,12 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-muted-foreground">New Logs Since Retrain</p>
                   <p className="text-lg font-semibold text-foreground mt-1">
                     {mlStatus.newLogsSinceRetrain ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Retrain Threshold</p>
+                  <p className="text-lg font-semibold text-foreground mt-1">
+                    {mlStatus.retrainThreshold ?? '—'} logs
                   </p>
                 </div>
               </div>
