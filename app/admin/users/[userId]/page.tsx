@@ -32,6 +32,32 @@ interface UserDetailResponse {
   logs: DailyLog[]
 }
 
+interface AuditEventData {
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  changedFields?: string[]
+  [key: string]: unknown
+}
+
+interface AuditEvent {
+  id: string
+  event_type: string
+  description: string
+  actor_email: string | null
+  actor_id?: string | null
+  created_at: string
+  event_data?: AuditEventData | null
+}
+
+interface ProfileForm {
+  first_name?: string
+  last_name?: string
+  age?: number | string
+  gender?: string
+  year_level?: string
+  field_of_study?: string
+}
+
 const riskColors: Record<string, string> = {
   Low: 'text-green-600',
   Moderate: 'text-yellow-600',
@@ -59,6 +85,14 @@ export default function AdminUserDetailPage() {
   const [resetMessage, setResetMessage] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [copied, setCopied] = useState(false)
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+  const [auditLoading, setAuditLoading] = useState(true)
+  const [auditError, setAuditError] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [profileForm, setProfileForm] = useState<ProfileForm>({})
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     if (!userId) return
@@ -73,9 +107,53 @@ export default function AdminUserDetailPage() {
       .finally(() => setLoading(false))
   }, [userId])
 
+  useEffect(() => {
+    if (!userId) return
+    setAuditLoading(true)
+    setAuditError('')
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    const queryParam = isUuid ? `userId=${encodeURIComponent(userId)}` : `userEmail=${encodeURIComponent(data?.profile?.email || decodeURIComponent(userId))}`
+
+    fetch(`/api/admin/audit?${queryParam}&limit=50`)
+      .then(async (res) => {
+        const json = await res.json()
+        if (!res.ok) {
+          throw new Error(json?.error || 'Failed to load audit history')
+        }
+        setAuditEvents(json.events || [])
+      })
+      .catch((err) => {
+        if (err instanceof Error) {
+          setAuditError(err.message)
+        } else if (typeof err === 'string') {
+          setAuditError(err)
+        } else {
+          setAuditError(JSON.stringify(err))
+        }
+      })
+      .finally(() => setAuditLoading(false))
+  }, [userId, data?.profile?.email])
+
+  useEffect(() => {
+    if (!data?.profile) return
+
+    setProfileForm({
+      first_name: data.profile.first_name ?? '',
+      last_name: data.profile.last_name ?? '',
+      age: data.profile.age ?? '',
+      gender: data.profile.gender ?? '',
+      year_level: data.profile.year_level ?? '',
+      field_of_study: data.profile.field_of_study ?? '',
+    })
+  }, [data?.profile])
+
   const displayName = data?.profile
     ? [data.profile.first_name, data.profile.last_name].filter(Boolean).join(' ')
     : null
+
+  const isRegistered = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+  const canGenerateTempPassword = isRegistered
 
   const handleSendResetEmail = async () => {
     const email = data?.profile?.email || decodeURIComponent(userId)
@@ -125,6 +203,44 @@ export default function AdminUserDetailPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleInputChange = (field: keyof ProfileForm, value: string | number) => {
+    setProfileForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const handleToggleEdit = () => {
+    setIsEditing((value) => !value)
+    setSaveMessage('')
+    setSaveError('')
+  }
+
+  const handleSaveProfile = async () => {
+    if (!userId) return
+    setSaveLoading(true)
+    setSaveMessage('')
+    setSaveError('')
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: profileForm }),
+      })
+
+      const body = await res.json()
+      if (!res.ok) {
+        throw new Error(body.error || 'Failed to save profile')
+      }
+
+      setSaveMessage('Profile updated successfully.')
+      setIsEditing(false)
+      setData((current) => current ? { ...current, profile: { ...current.profile, ...profileForm } } : current)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save profile')
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -148,33 +264,136 @@ export default function AdminUserDetailPage() {
         <>
           {/* Profile */}
           <section aria-labelledby="profile-heading" className="border border-border rounded-xl p-6">
-            <h2 id="profile-heading" className="text-lg font-semibold text-foreground mb-4">Profile</h2>
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              <div className="col-span-2 sm:col-span-3">
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="font-medium text-foreground mt-0.5">
-                  {data.profile?.email ?? decodeURIComponent(userId)}
-                </dd>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
-                <dt className="text-muted-foreground">Age</dt>
-                <dd className="font-medium text-foreground mt-0.5">{data.profile?.age ?? '—'}</dd>
+                <h2 id="profile-heading" className="text-lg font-semibold text-foreground">Profile</h2>
+                <p className="text-sm text-muted-foreground mt-1">Update registered user profile details and review account metadata.</p>
               </div>
-              <div>
-                <dt className="text-muted-foreground">Gender</dt>
-                <dd className="font-medium text-foreground mt-0.5">{data.profile?.gender ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Year Level</dt>
-                <dd className="font-medium text-foreground mt-0.5">{data.profile?.year_level ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Field of Study</dt>
-                <dd className="font-medium text-foreground mt-0.5">{data.profile?.field_of_study ?? '—'}</dd>
-              </div>
-            </dl>
+              {isRegistered && (
+                <button
+                  onClick={handleToggleEdit}
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                >
+                  {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+                </button>
+              )}
+            </div>
 
-            {/* Password Reset Button */}
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Email</label>
+                  <p className="mt-1 text-sm font-medium text-foreground">{data.profile?.email ?? decodeURIComponent(userId)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Name</label>
+                  <p className="mt-1 text-sm font-medium text-foreground">{displayName || '—'}</p>
+                </div>
+              </div>
+
+              {isEditing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="text-sm font-medium text-muted-foreground">First name</label>
+                    <input
+                      id="firstName"
+                      value={profileForm.first_name}
+                      onChange={(event) => handleInputChange('first_name', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="text-sm font-medium text-muted-foreground">Last name</label>
+                    <input
+                      id="lastName"
+                      value={profileForm.last_name}
+                      onChange={(event) => handleInputChange('last_name', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="age" className="text-sm font-medium text-muted-foreground">Age</label>
+                    <input
+                      id="age"
+                      type="number"
+                      value={profileForm.age}
+                      onChange={(event) => handleInputChange('age', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="gender" className="text-sm font-medium text-muted-foreground">Gender</label>
+                    <input
+                      id="gender"
+                      value={profileForm.gender}
+                      onChange={(event) => handleInputChange('gender', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="yearLevel" className="text-sm font-medium text-muted-foreground">Year level</label>
+                    <input
+                      id="yearLevel"
+                      value={profileForm.year_level}
+                      onChange={(event) => handleInputChange('year_level', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="fieldOfStudy" className="text-sm font-medium text-muted-foreground">Field of study</label>
+                    <input
+                      id="fieldOfStudy"
+                      value={profileForm.field_of_study}
+                      onChange={(event) => handleInputChange('field_of_study', event.target.value)}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Age</dt>
+                    <dd className="font-medium text-foreground mt-0.5">{data.profile?.age ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Gender</dt>
+                    <dd className="font-medium text-foreground mt-0.5">{data.profile?.gender ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Year Level</dt>
+                    <dd className="font-medium text-foreground mt-0.5">{data.profile?.year_level ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Field of Study</dt>
+                    <dd className="font-medium text-foreground mt-0.5">{data.profile?.field_of_study ?? '—'}</dd>
+                  </div>
+                </dl>
+              )}
+
+              {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+              {saveMessage && <p className="text-sm text-foreground">{saveMessage}</p>}
+
+              {isEditing && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={handleToggleEdit}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={saveLoading}
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {saveLoading ? 'Saving…' : 'Save Profile'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 pt-6 border-t border-border">
               <button
                 onClick={() => setShowPasswordModal(true)}
@@ -184,6 +403,77 @@ export default function AdminUserDetailPage() {
                 Reset Password
               </button>
             </div>
+          </section>
+
+          <section aria-labelledby="audit-heading" className="border border-border rounded-xl p-6">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 id="audit-heading" className="text-lg font-semibold text-foreground">Audit History</h2>
+                <p className="text-sm text-muted-foreground mt-1">Recent admin actions involving this user.</p>
+              </div>
+            </div>
+            {auditLoading ? (
+              <p className="text-sm text-muted-foreground">Loading audit history…</p>
+            ) : auditError ? (
+              <p role="alert" className="text-sm text-destructive">{auditError}</p>
+            ) : auditEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No admin audit events found for this user.</p>
+            ) : (
+              <div className="space-y-3">
+                {auditEvents.map((event) => {
+                  const fieldLabels: Record<string, string> = {
+                    first_name: 'First Name',
+                    last_name: 'Last Name',
+                    age: 'Age',
+                    gender: 'Gender',
+                    year_level: 'Year Level',
+                    field_of_study: 'Field of Study',
+                  }
+
+                  const hasStructuredData =
+                    event.event_data &&
+                    Array.isArray(event.event_data.changedFields) &&
+                    event.event_data.changedFields.length > 0 &&
+                    event.event_data.before !== undefined &&
+                    event.event_data.after !== undefined
+
+                  return (
+                    <div key={event.id} className="rounded-lg border border-border bg-background p-4">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium text-foreground">{event.event_type}</p>
+                        <p className="text-sm text-muted-foreground">{new Date(event.created_at).toLocaleString()}</p>
+
+                        {hasStructuredData ? (
+                          <div className="mt-2 space-y-2">
+                            {event.event_data!.changedFields!.map((field) => {
+                              const label = fieldLabels[field] ?? field.replace(/_/g, ' ').replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+                              const before = event.event_data!.before?.[field]
+                              const after = event.event_data!.after?.[field]
+                              return (
+                                <div key={field} className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                                  <span className="font-medium text-foreground">{label}:</span>{' '}
+                                  <span className="text-muted-foreground line-through">{before != null && before !== '' ? String(before) : '—'}</span>
+                                  {' → '}
+                                  <span className="text-foreground font-medium">{after != null && after !== '' ? String(after) : '—'}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-foreground">{event.description}</p>
+                        )}
+
+                        {(event.actor_email || event.actor_id) && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Performed by {event.actor_email ?? event.actor_id}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
 
           {/* Password Reset Modal */}
@@ -257,9 +547,12 @@ export default function AdminUserDetailPage() {
                       </div>
                     </button>
 
+                    {!canGenerateTempPassword && (
+                      <p className="text-xs text-muted-foreground">Temporary password generation is only available for registered users with a valid account.</p>
+                    )}
                     <button
                       onClick={handleGenerateTempPassword}
-                      disabled={resetLoading}
+                      disabled={resetLoading || !canGenerateTempPassword}
                       className="w-full flex items-center gap-2 px-4 py-3 border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left text-sm"
                     >
                       <Lock className="w-4 h-4 flex-shrink-0 text-orange-600" />

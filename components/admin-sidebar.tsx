@@ -45,6 +45,12 @@ const menuItems = [
     description: 'System analytics',
   },
   {
+    label: 'Audit History',
+    href: '/admin/audit',
+    icon: Eye,
+    description: 'Change history and admin actions',
+  },
+  {
     label: 'Activity Logs',
     href: '/admin/logs',
     icon: Activity,

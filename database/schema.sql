@@ -170,6 +170,16 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Admin Users Table (admin access control)
+CREATE TABLE IF NOT EXISTS public.admin_users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  role VARCHAR(50) NOT NULL DEFAULT 'admin',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Audit Log Table (for system monitoring)
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -195,6 +205,8 @@ CREATE INDEX IF NOT EXISTS idx_predictions_user_id ON public.predictions(user_id
 CREATE INDEX IF NOT EXISTS idx_predictions_log_id ON public.predictions(daily_log_id);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON public.user_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON public.user_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON public.admin_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON public.admin_users(email);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_wellness_tips_category ON public.wellness_tips(category);
 
@@ -257,6 +269,23 @@ CREATE POLICY "Users can update their own settings"
   ON public.user_settings
   FOR UPDATE
   USING (auth.uid() = user_id);
+
+-- Admin Audit Logs Table
+CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  target_email VARCHAR(255),
+  event_type VARCHAR(100) NOT NULL,
+  description TEXT NOT NULL,
+  event_data JSONB DEFAULT '{}'::jsonb,
+  actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  actor_email VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_target_user_id ON public.admin_audit_logs(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_target_email ON public.admin_audit_logs(target_email);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON public.admin_audit_logs(created_at);
 
 -- Wellness tips are public read-only
 CREATE POLICY "Anyone can view wellness tips"

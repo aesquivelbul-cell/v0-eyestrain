@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/admin-guard';
+import { recordAdminAuditEvent } from '@/lib/admin-audit';
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +28,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'send-reset-email') {
+      if (!userId.includes('@')) {
+        return NextResponse.json({ error: 'A valid email address is required to send a password reset link' }, { status: 400 });
+      }
       // Generate a password reset link and send via email
       try {
         const { data, error } = await adminClient.auth.admin.generateLink({
@@ -37,8 +43,16 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to generate reset link' }, { status: 500 });
         }
 
-        // In production, you'd send the actual reset link via email
-        // For now, we'll just indicate success
+        await recordAdminAuditEvent({
+          targetUserId: null,
+          targetEmail: userId,
+          eventType: 'password_reset_request',
+          description: `Admin requested a password reset link for ${userId}`,
+          eventData: { action: 'send-reset-email' },
+          actorId: user?.id ?? null,
+          actorEmail: user?.email ?? null,
+        });
+
         return NextResponse.json({
           success: true,
           message: 'Password reset link generated. A reset email would be sent to the user in production.',
@@ -48,6 +62,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to send reset email' }, { status: 500 });
       }
     } else if (action === 'generate-temp-password') {
+      if (!uuidRegex.test(userId)) {
+        return NextResponse.json({ error: 'Temporary password generation requires a registered user ID' }, { status: 400 });
+      }
       // Generate a temporary password and update the user
       try {
         const tempPassword = Math.random().toString(36).slice(-12).toUpperCase() + Math.random().toString(36).slice(-4);
@@ -61,6 +78,16 @@ export async function POST(request: NextRequest) {
           console.error('Update password error:', updateError);
           return NextResponse.json({ error: 'Failed to update password' }, { status: 500 });
         }
+
+        await recordAdminAuditEvent({
+          targetUserId: userId,
+          targetEmail: null,
+          eventType: 'temporary_password_generated',
+          description: `Admin generated a temporary password for user ${userId}`,
+          eventData: { action: 'generate-temp-password' },
+          actorId: user?.id ?? null,
+          actorEmail: user?.email ?? null,
+        });
 
         return NextResponse.json({
           success: true,
