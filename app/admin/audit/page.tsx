@@ -138,7 +138,11 @@ export default function AdminAuditPage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {event.target_user_id ? (
                         <a href={`/admin/users/${event.target_user_id}`} className="text-primary hover:underline">
-                          {event.target_user_id}
+                          {(() => {
+                            const before = event.event_data?.before as Record<string, unknown> | undefined
+                            const name = [before?.first_name, before?.last_name].filter(Boolean).join(' ')
+                            return name || event.target_user_id
+                          })()}
                         </a>
                       ) : event.target_email ? (
                         <a href={`/admin/users/${encodeURIComponent(event.target_email)}`} className="text-primary hover:underline">
@@ -150,12 +154,41 @@ export default function AdminAuditPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{event.actor_email || 'Unknown'}</td>
                     <td className="px-4 py-3 text-muted-foreground max-w-xl break-words">
-                      <div>{event.description}</div>
-                      {event.event_data && Object.keys(event.event_data).length > 0 && (
-                        <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-slate-950/5 p-2 text-xs text-muted-foreground">
-                          {JSON.stringify(event.event_data, null, 2)}
-                        </pre>
-                      )}
+                      {(() => {
+                        const fieldLabels: Record<string, string> = {
+                          first_name: 'First Name',
+                          last_name: 'Last Name',
+                          age: 'Age',
+                          gender: 'Gender',
+                          year_level: 'Year Level',
+                          field_of_study: 'Field of Study',
+                        }
+                        const changedFields = event.event_data?.changedFields
+                        const before = event.event_data?.before as Record<string, unknown> | undefined
+                        const after = event.event_data?.after as Record<string, unknown> | undefined
+
+                        if (Array.isArray(changedFields) && changedFields.length > 0 && before !== undefined && after !== undefined) {
+                          return (
+                            <div className="space-y-1">
+                              {changedFields.map((field: string) => {
+                                const label = fieldLabels[field] ?? field.replace(/_/g, ' ').replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+                                const beforeVal = before?.[field]
+                                const afterVal = after?.[field]
+                                return (
+                                  <div key={field} className="text-sm">
+                                    <span className="font-medium text-foreground">{label}:</span>{' '}
+                                    <span className="line-through text-muted-foreground">{beforeVal != null && beforeVal !== '' ? String(beforeVal) : '—'}</span>
+                                    {' → '}
+                                    <span className="text-foreground">{afterVal != null && afterVal !== '' ? String(afterVal) : '—'}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        }
+
+                        return <div>{event.description}</div>
+                      })()}
                     </td>
                   </tr>
                 ))}
